@@ -809,9 +809,9 @@ function setAIBusy(busy) {
   $('btnApply').disabled = busy || !st.aiResult;
 }
 
-/** AI の応答の前後の空行と、全体を囲む ``` を取り除く */
+/** AI の応答の前後の空行と、全体を囲む ``` と、太字の印 ** を取り除く */
 function cleanResult(text) {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const lines = cleanPasted(text).replace(/\r\n?/g, '\n').split('\n');
   while (lines.length && lines[0].trim() === '') lines.shift();
   while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
   if (lines.length >= 2 && lines[0].trim().startsWith('```') && lines[lines.length - 1].trim() === '```') {
