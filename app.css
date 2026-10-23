@@ -328,7 +328,30 @@ dialog h2 { margin: 0 0 12px; font-size: 16px; }
 dialog label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 dialog input { width: 100%; font-size: 16px; padding: 6px; }
 .help { margin: 4px 0; font-size: 12px; color: var(--muted); }
-.dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.steps { padding-left: 1.4em; line-height: 1.7; }
+.dlg-buttons { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+#dlgSync, #dlgConflict { width: min(34em, calc(100vw - 24px)); }
+.conflict { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.conflict pre {
+  height: 9em;
+  margin: 4px 0 0;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fafafa;
+  font-family: var(--note-font);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+#cfRemoteInfo { color: var(--muted); font-size: 12px; }
+
+/* 同期の状態 */
+.sync-btn { font-size: 12px; }
+.sync-btn[data-kind="ok"] { color: #1f7a1f; }
+.sync-btn[data-kind="busy"] { color: var(--accent); }
+.sync-btn[data-kind="error"], .sync-btn[data-kind="conflict"] { color: #c00; border-color: #e3a1a1; background: #fff3f3; }
+.sync-btn[data-kind="off"] { color: var(--muted); }
 
 /* 狭い画面（スマートフォン）: 1 画面ずつタブで切り替え、行は折り返す ---------- */
 
@@ -337,6 +360,10 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .tabs button { padding: 5px 14px; }
   .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tools button { padding: 4px 8px; }
+  /* 狭い画面では同期の状態は雲の印だけ（色で状態を示す） */
+  #syncText { display: none; }
+  .conflict { grid-template-columns: 1fr; }
+  .conflict pre { height: 6em; }
 
   main {
     grid-template-columns: minmax(0, 1fr);

@@ -12,6 +12,7 @@ import * as store from './store.js';
 import { AIError, findProvider, getProviders } from './ai.js';
 import './gemini.js';
 import { loadPrompts, savePrompts } from './prompts.js';
+import { GistSync } from './cloud.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -279,14 +280,15 @@ function persistSoon() {
   persistTimer = setTimeout(persist, 300);
 }
 
+function currentState() {
+  return { left: st.left, right: rightText.value, marks: st.marks, seeded: st.seeded };
+}
+
+/** ブラウザ内に保存し、同期していれば少し後に他の端末へも送る */
 function persist() {
   clearTimeout(persistTimer);
-  store.save('state', {
-    left: st.left,
-    right: rightText.value,
-    marks: st.marks,
-    seeded: st.seeded,
-  });
+  store.save('state', currentState());
+  cloud?.schedule();
 }
 
 function restore() {
@@ -779,6 +781,7 @@ function savePrompt() {
   else prompts.push({ name, text });
   if (!savePrompts(prompts)) alert('指示の一覧を保存できませんでした。');
   refreshPrompts(name);
+  cloud?.schedule();
   showMsg(`指示「${name}」を保存しました`);
 }
 
@@ -788,6 +791,7 @@ function deletePrompt() {
   prompts = prompts.filter((p) => p.name !== name);
   savePrompts(prompts);
   refreshPrompts('');
+  cloud?.schedule();
 }
 
 function setAIBusy(busy) {
@@ -861,6 +865,109 @@ function applyAIResult() {
   replaceRight(st.aiResult, 0);
   rightScroll.scrollTop = 0;
   showMsg('AI の応答を右のノートに反映しました（Ctrl+Z で取り消せます）');
+}
+
+// 他の端末との同期（GitHub の Gist） ---------------------------------------------
+
+let cloud = null;
+
+/** 他の端末から届いた内容を画面に入れる（この端末の内容は置き換わる） */
+function applyRemote(data) {
+  const s = data.state || {};
+  st.left = Array.isArray(s.left) ? s.left.map(String) : [];
+  rightText.value = typeof s.right === 'string' ? s.right : '';
+  st.marks = Array.isArray(s.marks) ? s.marks.filter((m) => Number.isInteger(m.line) && Number.isInteger(m.ch)) : [];
+  st.seeded = !!s.seeded;
+  st.prevLines = rightText.value.split('\n');
+  rightText.setSelectionRange(0, 0);
+  if (Array.isArray(data.prompts)) {
+    prompts = data.prompts.filter((p) => p && typeof p.name === 'string' && typeof p.text === 'string');
+    savePrompts(prompts);
+    refreshPrompts(settings.prompt);
+    selectPrompt();
+  }
+  update();
+  store.save('state', currentState());
+  showMsg(`他の端末（${data.device || '不明'}）の内容を読み込みました`);
+}
+
+function setSyncStatus(kind, text, detail = '') {
+  const btn = $('btnSync');
+  btn.dataset.kind = kind;
+  $('syncText').textContent = text;
+  btn.title = detail ? `${text}\n${detail}` : `他の端末との同期（${text}）`;
+  if (kind === 'error') showMsg(text + ': ' + detail.split('\n')[0]);
+}
+
+function preview(state) {
+  const text = state?.right || '';
+  return text === '' ? '（空）' : text;
+}
+
+/** 競合したとき、どちらを残すかを選んでもらう */
+function resolveConflict(remote, local) {
+  const dlg = $('dlgConflict');
+  $('cfRemote').textContent = preview(remote.state);
+  $('cfLocal').textContent = preview(local.state);
+  const when = remote.updatedAt ? new Date(remote.updatedAt).toLocaleString('ja-JP') : '';
+  $('cfRemoteInfo').textContent = `（${remote.device || '不明'}・${when}）`;
+  return new Promise((resolve) => {
+    dlg.addEventListener('close', () => {
+      const v = dlg.returnValue;
+      resolve(v === 'remote' || v === 'local' ? v : null);
+    }, { once: true });
+    dlg.returnValue = '';
+    dlg.showModal();
+  });
+}
+
+function openSyncDialog() {
+  const dlg = $('dlgSync');
+  $('dlgSyncToken').value = cloud.meta.token;
+  $('dlgSyncStop').disabled = !cloud.enabled;
+  // 同期先の Gist の番号の頭を見せて、端末どうしで同じ所に同期しているか確かめられるようにする
+  $('dlgSyncState').textContent = cloud.enabled
+    ? `同期中: ${$('syncText').textContent}（同期先 Gist ${cloud.meta.gistId.slice(0, 7)}）`
+    : 'まだ同期していません。';
+  dlg.addEventListener('close', async () => {
+    if (dlg.returnValue === 'stop') {
+      if (confirm('この端末の同期を止めます。よろしいですか？\n（この端末の内容と、GitHub の Gist はそのまま残ります）')) cloud.stop();
+      return;
+    }
+    if (dlg.returnValue !== 'ok') return;
+    const token = $('dlgSyncToken').value.trim();
+    if (!token) {
+      alert('トークンを貼り付けてください。');
+      return;
+    }
+    persist();
+    setSyncStatus('busy', '同期の準備中…');
+    try {
+      await cloud.setup(token);
+    } catch (e) {
+      setSyncStatus('error', '同期エラー', e.message);
+      alert(e.message);
+    }
+  }, { once: true });
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+function initCloud() {
+  cloud = new GistSync({
+    snapshot: () => ({ state: currentState(), prompts }),
+    apply: applyRemote,
+    status: setSyncStatus,
+    resolve: resolveConflict,
+  });
+  $('btnSync').addEventListener('click', openSyncDialog);
+  document.addEventListener('visibilitychange', () => {
+    // 戻ってきたら他の端末の更新を見に行き、離れるときはこの端末の変更を送る
+    if (document.visibilityState === 'visible') cloud.pullSoon();
+    else cloud.syncNow();
+  });
+  if (cloud.enabled) cloud.syncNow();
+  else setSyncStatus('off', '同期: オフ');
 }
 
 // 起動 ------------------------------------------------------------------------
@@ -974,6 +1081,7 @@ function start() {
   selectPrompt();
   setAIBusy(false);
   update();
+  initCloud();
   // 新規（左が空）で狭い画面なら、まず貼り付けの画面を出す
   if (isNarrow() && st.left.length === 0 && rightText.value === '') setTab('left');
 

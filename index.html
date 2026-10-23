@@ -25,6 +25,7 @@
     <button type="button" role="tab" data-tab="ai">AI</button>
   </nav>
   <div class="tools">
+    <button type="button" id="btnSync" class="sync-btn" data-kind="off" title="他の端末との同期">☁ <span id="syncText">同期: オフ</span></button>
     <button type="button" id="btnFontDown" title="文字を小さく" aria-label="文字を小さく">A−</button>
     <button type="button" id="btnFontUp" title="文字を大きく" aria-label="文字を大きく">A＋</button>
   </div>
@@ -53,7 +54,7 @@
       <span class="spacer"></span>
       <button type="button" id="btnRevertLines" title="カーソル行（選択していれば選択した行）を元の歌詞に戻す">行を戻す</button>
       <button type="button" id="btnRevertAll" title="右のノート全体を元の歌詞に戻す">全体を戻す</button>
-      <button type="button" id="btnCopy" class="primary" title="右のノートの全文をコピーする">コピー</button>
+      <button type="button" id="btnCopy" class="primary" title="右のノートの全文をコピーする">全文コピー</button>
     </div>
     <div class="note" id="rightScroll">
       <div class="sheet" id="rightSheet">
@@ -114,6 +115,49 @@
     <div class="dlg-buttons">
       <button value="cancel" formnovalidate>キャンセル</button>
       <button value="ok" id="dlgKeyOk" class="primary">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgSync">
+  <form method="dialog">
+    <h2>他の端末との同期</h2>
+    <p class="help">
+      歌詞（左右のノート）と指示の一覧を、GitHub の非公開の Gist に置いて、
+      どの端末からでも続きを編集できるようにします。APIキーは同期しません。
+    </p>
+    <ol class="help steps">
+      <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Lyricker" target="_blank" rel="noopener">GitHub のトークン作成画面</a>を開く（GitHub にログイン）</li>
+      <li>「gist」だけにチェックが入っていることを確かめ、有効期限を選んで「Generate token」</li>
+      <li>表示された「ghp_…」で始まる文字列をコピーして、下に貼り付ける</li>
+    </ol>
+    <label>GitHub のトークン（Gist の権限だけのもの）
+      <input id="dlgSyncToken" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_...">
+    </label>
+    <p class="help">トークンはこの端末のブラウザの中だけに保存されます。同期したい端末ごとに登録してください（同じトークンで構いません）。</p>
+    <p class="help" id="dlgSyncState"></p>
+    <div class="dlg-buttons">
+      <button value="stop" id="dlgSyncStop" formnovalidate>同期を止める</button>
+      <span class="spacer"></span>
+      <button value="cancel" formnovalidate>閉じる</button>
+      <button value="ok" id="dlgSyncOk" class="primary">保存して同期</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgConflict">
+  <form method="dialog">
+    <h2>他の端末でも編集されています</h2>
+    <p class="help">この端末と他の端末の両方で、前回の同期のあとに編集されました。どちらの内容を残しますか？</p>
+    <div class="conflict">
+      <div><b>他の端末</b> <span id="cfRemoteInfo"></span><pre id="cfRemote"></pre></div>
+      <div><b>この端末</b><pre id="cfLocal"></pre></div>
+    </div>
+    <div class="dlg-buttons">
+      <button value="later" formnovalidate>あとで</button>
+      <span class="spacer"></span>
+      <button value="local">この端末の内容を残す</button>
+      <button value="remote" class="primary">他の端末の内容を読み込む</button>
     </div>
   </form>
 </dialog>

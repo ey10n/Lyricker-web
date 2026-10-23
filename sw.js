@@ -2,7 +2,7 @@
 // つながっているときは常に最新を取りに行き（取れたら保存し直す）、
 // つながらないときだけ保存しておいたものを使う。AI との通信（別のサイト）には関わらない。
 
-const CACHE = 'lyricker-v2';
+const CACHE = 'lyricker-v3';
 const ASSETS = [
   './',
   'index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   'js/ai.js',
   'js/gemini.js',
   'js/prompts.js',
+  'js/cloud.js',
   'manifest.webmanifest',
   'icons/icon-192.png',
   'icons/icon-512.png',
