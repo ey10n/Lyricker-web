@@ -1,0 +1,369 @@
+:root {
+  /* ノートの文字。--fs と --lh は app.js が設定を元に書き換える */
+  --fs: 15px;
+  --lh: 24px;
+  --note-font: "BIZ UDGothic", "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI",
+    "Meiryo", "Noto Sans JP", sans-serif;
+  --ui-font: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+
+  --bg: #eef0f3;
+  --pane: #fff;
+  --line: #d3d6db;
+  --gutter: #f2f3f5;
+  --muted: #667;
+  --accent: #2f6fb5;
+
+  /* Windows 版と同じ色 */
+  --diff-bg: #ffe0e0;      /* 差異のある行 */
+  --diff-fg: #e00000;
+  --rep-fg: #ff8c00;       /* 右ノートの再出行 */
+  --caret-left: #a0c8ff;   /* カーソル行 */
+  --caret-right: #a0eba0;
+  --mark-bg: #ff3c3c;      /* ダブルクリックした文字 */
+
+  /* 行番号と印の列の幅。行番号は小さい文字にするので、em ではなくノートの文字の大きさから決める
+     （入力欄の位置と、下に重ねた行の文字の位置をぴったりそろえるため） */
+  --num-w: calc(var(--fs) * 2.6);
+  --mk-w: calc(var(--fs) * 1.5);
+  --text-pad: 4px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  font-family: var(--ui-font);
+  font-size: 14px;
+  background: var(--bg);
+  color: #222;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, select, input, textarea { font: inherit; color: inherit; }
+
+button {
+  padding: 4px 10px;
+  border: 1px solid #b9bec6;
+  border-radius: 6px;
+  background: #fafbfc;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+}
+button:hover:not(:disabled) { background: #e8f0fa; }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
+button.primary:hover:not(:disabled) { background: #275f9c; }
+button.busy { background: #c0392b; border-color: #c0392b; }
+
+select, input:not([type]), input[type=password] {
+  padding: 3px 4px;
+  border: 1px solid #b9bec6;
+  border-radius: 4px;
+  background: #fff;
+  min-width: 0;
+}
+
+/* 上の帯 ------------------------------------------------------------------ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  padding-top: max(6px, env(safe-area-inset-top));
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+.topbar h1 { margin: 0; font-size: 16px; color: var(--accent); }
+.tabs { display: none; gap: 2px; }
+.tools { display: flex; gap: 4px; margin-left: auto; }
+
+/* 全体の配置（広い画面: 左右に並べ、下に AI 欄） ---------------------------- */
+
+main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto 8px var(--ai-h, 240px);
+  grid-template-areas:
+    "left right"
+    "status status"
+    "split split"
+    "ai ai";
+  column-gap: 6px;
+  padding: 6px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  padding-left: max(6px, env(safe-area-inset-left));
+  padding-right: max(6px, env(safe-area-inset-right));
+}
+#paneLeft { grid-area: left; }
+#paneRight { grid-area: right; }
+#statusbar { grid-area: status; }
+#aiSplit { grid-area: split; }
+#paneAI { grid-area: ai; }
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--pane);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.pane-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  background: #f8f9fa;
+}
+.label { font-weight: bold; }
+.label .sub { font-weight: normal; color: var(--muted); font-size: 12px; }
+.count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.count.over { color: #e00000; font-weight: bold; }
+.spacer { flex: 1; }
+
+/* ノート ------------------------------------------------------------------ */
+
+.note {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--note-font);
+  font-size: var(--fs);
+  line-height: var(--lh);
+  font-kerning: none;
+  font-variant-ligatures: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.row { display: flex; min-height: var(--lh); }
+
+/* 行番号と印。横にスクロールしても左に残す */
+.num, .mk {
+  position: sticky;
+  z-index: 2;
+  flex: none;
+  background: var(--gutter);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.num {
+  left: 0;
+  width: var(--num-w);
+  padding-right: .35em;
+  text-align: right;
+  color: #8a8f98;
+  font-size: .8em;
+}
+.mk {
+  left: var(--num-w);
+  width: var(--mk-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--line);
+}
+.mk svg { width: .85em; height: .85em; display: block; }
+
+.tx {
+  flex: 1 1 auto;
+  padding-left: var(--text-pad);
+  white-space: pre;
+  tab-size: 4;
+}
+
+.row.diff .tx { background: var(--diff-bg); color: var(--diff-fg); }
+.row.rep .tx { color: var(--rep-fg); }
+.row.caret .tx { background: var(--caret-bg); }
+#leftRows { --caret-bg: var(--caret-left); }
+#rightRows { --caret-bg: var(--caret-right); }
+.cm { background: var(--mark-bg); color: #fff; }
+
+/* 右ノートの入力欄。文字は透明にして、下に重ねた行（色付き）を見せる */
+#rightText {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--num-w) + var(--mk-w));
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0 0 0 var(--text-pad);
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: #000;
+  font: inherit;
+  line-height: inherit;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  white-space: pre;
+  tab-size: 4;
+}
+#rightText::selection { background: rgba(47, 111, 181, .32); -webkit-text-fill-color: transparent; }
+
+/* 左ノートは表示だけ。行をクリックすると右の対応する行へ移る */
+#leftRows .row { cursor: pointer; }
+
+/* 左が空のときは貼り付け欄を出す */
+.paste-area {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 12px;
+  border: 2px dashed #9fb6d3;
+  border-radius: 6px;
+  background: #f7faff;
+  resize: none;
+  outline: none;
+  font-family: var(--ui-font);
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+}
+#paneLeft.empty .paste-area { display: block; }
+#paneLeft.empty .sheet { display: none; }
+
+/* 状態表示の帯 ------------------------------------------------------------ */
+
+.statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 4px 2px;
+  font-size: 13px;
+  color: #444;
+}
+.statusbar button { padding: 2px 8px; font-size: 12px; }
+.sync { display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
+#statusMsg { color: var(--accent); }
+
+.splitter {
+  cursor: row-resize;
+  touch-action: none;
+  background: radial-gradient(circle, #9aa1ab 1px, transparent 1.5px) center / 6px 6px repeat-x;
+}
+
+/* AI 欄 ------------------------------------------------------------------- */
+
+.ai-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  background: #f8f9fa;
+}
+.ai-bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+#selProvider { width: 7em; }
+#selAccount { width: 8em; }
+#inpModel { width: 12em; }
+#selPrompt { width: 12em; }
+
+.ai-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px;
+}
+.ai-body textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  resize: none;
+  font-family: var(--note-font);
+  font-size: 14px;
+  line-height: 1.6;
+}
+#aiResult { background: #fbfbfb; }
+
+/* ダイアログ -------------------------------------------------------------- */
+
+dialog {
+  width: min(28em, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .25);
+}
+dialog::backdrop { background: rgba(0, 0, 0, .3); }
+dialog h2 { margin: 0 0 12px; font-size: 16px; }
+dialog label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+dialog input { width: 100%; font-size: 16px; padding: 6px; }
+.help { margin: 4px 0; font-size: 12px; color: var(--muted); }
+.dlg-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* 狭い画面（スマートフォン）: 1 画面ずつタブで切り替え、行は折り返す ---------- */
+
+@media (max-width: 820px) {
+  .tabs { display: flex; }
+  .tabs button { padding: 5px 14px; }
+  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tools button { padding: 4px 8px; }
+
+  main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "pane" "status";
+  }
+  #paneLeft, #paneRight, #paneAI { grid-area: pane; display: none; }
+  #aiSplit, .sync { display: none; }
+  body[data-tab="left"] #paneLeft,
+  body[data-tab="right"] #paneRight,
+  body[data-tab="ai"] #paneAI { display: flex; }
+  body[data-tab="ai"] #statusbar { display: none; }
+
+  /* 見出しはタブに出ているので、ボタンを 1 行に収めるため省く */
+  .pane-head .label { display: none; }
+  .pane-head button { padding: 4px 8px; }
+
+  .ai-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .ai-body textarea, #inpModel, #selPrompt, #selAccount, #selProvider { font-size: 16px; }
+  #selProvider { width: auto; }
+  #selAccount { width: 6.5em; }
+  #inpModel { width: 9.5em; }
+  #selPrompt { width: 10em; }
+}
+
+/* 折り返し表示（狭い画面）。入力欄と下の行が同じ位置で折り返すようにそろえる */
+body.wrap .sheet { width: 100%; }
+body.wrap .tx { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+body.wrap #rightText { white-space: pre-wrap; overflow-wrap: anywhere; }
