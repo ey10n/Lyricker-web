@@ -291,6 +291,8 @@ main {
 #selProvider { width: 7em; }
 #selAccount, #inpModel { width: 12em; }
 #selPrompt { width: 12em; }
+/* 自由文の欄は、残りの幅いっぱいに広げる */
+.free { flex: 1 1 10em; min-width: 8em; }
 
 .ai-body {
   flex: 1;
@@ -386,6 +388,8 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   #selProvider { width: auto; }
   #selAccount, #inpModel { width: 9.5em; }
   #selPrompt { width: 10em; }
+  /* 自由文は 1 行まるごと使う（iPhone が拡大しないよう 16px） */
+  .free { flex: 1 1 100%; font-size: 16px; }
 }
 
 /* 折り返し表示（狭い画面）。入力欄と下の行が同じ位置で折り返すようにそろえる */

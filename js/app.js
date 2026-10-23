@@ -833,12 +833,16 @@ async function runAI() {
     acct = currentAccount();
     if (!acct) return;
   }
-  const instruction = aiPrompt.value.trim();
+  // 自由文の欄に書いてあれば、指示の代わりにそれを送る
+  const inpFree = $('inpFree');
+  const free = inpFree.value.trim();
+  const instruction = free || aiPrompt.value.trim();
   if (!instruction) {
     alert('指示を一覧から選ぶか、指示の欄に入力してください。');
     return;
   }
-  if (rightText.value.trim() === '') {
+  const hasLyrics = rightText.value.trim() !== '';
+  if (!free && !hasLyrics) {
     alert('右のノートが空です。');
     return;
   }
@@ -846,7 +850,11 @@ async function runAI() {
   inpModel.value = model;
   saveModel();
 
-  const promptText = `${instruction}\n\n--- 対象テキスト ---\n${rightText.value}`;
+  // 右のノートが空なら、自由文だけを送る
+  const promptText = hasLyrics
+    ? `${instruction}\n\n--- 対象テキスト ---\n${rightText.value}`
+    : instruction;
+  inpFree.value = '';
   aiAbort = new AbortController();
   st.aiResult = '';
   aiResult.value = 'AI に問い合わせています…';
@@ -1066,6 +1074,13 @@ function bind() {
   $('btnPromptSave').addEventListener('click', savePrompt);
   $('btnPromptDelete').addEventListener('click', deletePrompt);
   $('btnRun').addEventListener('click', runAI);
+  // 自由文の欄で Enter を押したら送る（日本語入力の変換を確定する Enter は除く）
+  $('inpFree').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      runAI();
+    }
+  });
   $('btnApply').addEventListener('click', applyAIResult);
 
   // キー操作

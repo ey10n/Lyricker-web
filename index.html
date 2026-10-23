@@ -90,7 +90,8 @@
       <label>指示 <select id="selPrompt"></select></label>
       <button type="button" id="btnPromptSave" title="下の指示を名前を付けて保存する">保存…</button>
       <button type="button" id="btnPromptDelete" title="選んでいる指示を一覧から削除する">削除</button>
-      <span class="spacer"></span>
+      <input id="inpFree" class="free" autocomplete="off" spellcheck="false"
+        placeholder="AI に自由に送る文（空なら下の指示で実行）" aria-label="AI に自由に送る文">
       <button type="button" id="btnRun" class="primary" title="右のノートに指示を付けて AI に送る（Ctrl+Enter）">実行 ▶</button>
       <button type="button" id="btnApply" title="AI の応答で右のノートを置き換える（Ctrl+Z で戻せる）">右ノートに反映</button>
     </div>
