@@ -12,11 +12,23 @@ const SAME = 0;
 const LEFT_ONLY = 1;
 const RIGHT_ONLY = 2;
 
+/** 比べるときの見出し行の代わりの値（見出し行どうしは中身が違っても同じ行として並べる） */
+const TAG_KEY = '\u0000[tag]';
+
+/** [サビ] や [Verse 1][Male] のように、行全体が [ ] で囲まれた見出し行か */
+export function isTagLine(s) {
+  return /^\s*(\[[^\]]*\]\s*)+$/.test(s);
+}
+
 /**
  * left / right（行の配列）を上から並べたときの対応表を返す。
- * 各要素は { left: 左の行番号 or -1, right: 右の行番号 or -1, same: 同じ内容か }
+ * 各要素は { left: 左の行番号 or -1, right: 右の行番号 or -1, same: 同じ内容か,
+ *           ignored: 見出し行だけの違いなので差異として扱わないか }
  */
-export function computeLineAlignment(left, right) {
+export function computeLineAlignment(leftLines, rightLines) {
+  // 見出し行は中身を問わず同じものとして並べる
+  const left = leftLines.map((s) => (isTagLine(s) ? TAG_KEY : s));
+  const right = rightLines.map((s) => (isTagLine(s) ? TAG_KEY : s));
   const n = left.length;
   const m = right.length;
   const ops = [];
@@ -78,11 +90,14 @@ export function computeLineAlignment(left, right) {
 
   // 操作列を左右 1 行ずつの対応表に変換する。
   // 連続する「左のみ」「右のみ」は 1 つの変更ブロックとして順に対応付ける。
+  // 見出し行は歌詞の行と組にせず、単独の行（差異として扱わない）にする。
   const rows = [];
   let i = 0;
   while (i < ops.length) {
     if (ops[i][0] === SAME) {
-      rows.push({ left: ops[i][1], right: ops[i][2], same: true });
+      const [, l, r] = ops[i];
+      // 見出し行どうしは中身が違っても差異にしない
+      rows.push({ left: l, right: r, same: leftLines[l] === rightLines[r], ignored: left[l] === TAG_KEY });
       i++;
       continue;
     }
@@ -93,15 +108,30 @@ export function computeLineAlignment(left, right) {
       else ins.push(ops[i][2]);
       i++;
     }
-    for (let k = 0; k < Math.max(dels.length, ins.length); k++) {
-      rows.push({
-        left: k < dels.length ? dels[k] : -1,
-        right: k < ins.length ? ins[k] : -1,
-        same: false,
-      });
+    // 左右それぞれの行の順番を保ったまま並べる
+    let d = 0;
+    let s = 0;
+    while (d < dels.length || s < ins.length) {
+      if (d < dels.length && left[dels[d]] === TAG_KEY) {
+        rows.push({ left: dels[d++], right: -1, same: false, ignored: true });
+      } else if (s < ins.length && right[ins[s]] === TAG_KEY) {
+        rows.push({ left: -1, right: ins[s++], same: false, ignored: true });
+      } else {
+        rows.push({
+          left: d < dels.length ? dels[d++] : -1,
+          right: s < ins.length ? ins[s++] : -1,
+          same: false,
+          ignored: false,
+        });
+      }
     }
   }
   return rows;
+}
+
+/** 差異として扱う行か */
+export function isDiffRow(row) {
+  return !row.same && !row.ignored;
 }
 
 /**
@@ -109,10 +139,10 @@ export function computeLineAlignment(left, right) {
  * 右には変更された行（'changed'）・左に無い行（'added'）を付ける。
  */
 export function computeLineMarks(rows, rightCount) {
-  const leftMarks = rows.map((r) => (r.right < 0 && r.left >= 0 ? 'deleted' : ''));
+  const leftMarks = rows.map((r) => (isDiffRow(r) && r.right < 0 && r.left >= 0 ? 'deleted' : ''));
   const rightMarks = new Array(rightCount).fill('');
   for (const r of rows) {
-    if (r.right < 0 || r.right >= rightCount || r.same) continue;
+    if (r.right < 0 || r.right >= rightCount || !isDiffRow(r)) continue;
     rightMarks[r.right] = r.left < 0 ? 'added' : 'changed';
   }
   return { leftMarks, rightMarks };

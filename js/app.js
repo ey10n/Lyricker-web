@@ -7,7 +7,7 @@
 //
 // 作業中の内容と設定はブラウザの中（localStorage）に自動で保存する。
 
-import { computeLineAlignment, computeLineMarks, findRepeatedLines } from './diff.js';
+import { computeLineAlignment, computeLineMarks, findRepeatedLines, isDiffRow } from './diff.js';
 import * as store from './store.js';
 import { AIError, findProvider, getProviders } from './ai.js';
 import './gemini.js';
@@ -179,7 +179,7 @@ function update() {
   rows.forEach((r, i) => {
     if (r.right >= 0) {
       st.rightRowOf[r.right] = i;
-      st.rightDiff[r.right] = !r.same;
+      st.rightDiff[r.right] = isDiffRow(r);
     }
   });
   const marks = computeLineMarks(rows, lines.length);
@@ -200,7 +200,7 @@ function renderLeft() {
   let html = '';
   st.rows.forEach((r, i) => {
     const filler = r.left < 0;   // 右にしか無い行の位置に入れる空行
-    const cls = 'row' + (r.same ? '' : ' diff') + (filler ? ' filler' : '');
+    const cls = 'row' + (isDiffRow(r) ? ' diff' : '') + (filler ? ' filler' : '');
     html += `<div class="${cls}" data-r="${i}"><span class="num">${filler ? '' : r.left + 1}</span>` +
       `<span class="mk">${st.leftMarks[i] === 'deleted' ? SVG.deleted : ''}</span>` +
       `<span class="tx">${filler ? '' : esc(st.left[r.left])}</span></div>`;
@@ -267,7 +267,7 @@ function updateCounts() {
 }
 
 function updateStatus() {
-  const leftN = st.rows.filter((r) => !r.same).length;
+  const leftN = st.rows.filter(isDiffRow).length;
   const rightN = st.rightDiff.filter(Boolean).length;
   $('statusDiff').textContent = `差異: 左 ${leftN} 行 / 右 ${rightN} 行`;
 }
@@ -302,8 +302,13 @@ function restore() {
 
 // 左のノート（貼り付けで読み込む） --------------------------------------------
 
+/** 貼り付けた文字から取り除くもの（AI の出力などに付いてくる太字の印 **） */
+function cleanPasted(text) {
+  return text.replaceAll('**', '');
+}
+
 function loadLeft(text) {
-  text = text.replace(/\r\n?/g, '\n');
+  text = cleanPasted(text).replace(/\r\n?/g, '\n');
   if (text.endsWith('\n')) text = text.slice(0, -1);
   if (text === '') return;
   st.left = text.split('\n');
@@ -426,7 +431,7 @@ function gotoDiff(back) {
   // 狭い画面で左を見ているときは、左のノートの中で移動する
   if (isNarrow() && settings.tab === 'left') {
     const from = Math.floor(leftScroll.scrollTop / lineHeight());
-    const idx = findDiff(st.rows.map((r) => !r.same), from, back);
+    const idx = findDiff(st.rows.map(isDiffRow), from, back);
     if (idx < 0) return showMsg('これ以上、差異はありません');
     leftScroll.scrollTop = leftRows.children[idx].offsetTop;
     return;
@@ -975,6 +980,19 @@ function initCloud() {
 function bind() {
   // 右のノート
   rightText.addEventListener('input', onRightInput);
+  // 貼り付けるときに ** を取り除く（元に戻せるよう、入力と同じ操作で入れる）
+  rightText.addEventListener('paste', (e) => {
+    const text = e.clipboardData?.getData('text/plain');
+    if (!text || !text.includes('**')) return;
+    e.preventDefault();
+    const cleaned = cleanPasted(text);
+    let ok = false;
+    try { ok = document.execCommand('insertText', false, cleaned); } catch { ok = false; }
+    if (!ok) {
+      rightText.setRangeText(cleaned, rightText.selectionStart, rightText.selectionEnd, 'end');
+      onRightInput();
+    }
+  });
   rightText.addEventListener('dblclick', onRightDoubleClick);
   for (const ev of ['keyup', 'click', 'focus', 'select']) rightText.addEventListener(ev, updateCaret);
   document.addEventListener('selectionchange', () => {
