@@ -115,7 +115,7 @@
       <input id="dlgKeyValue" type="password" autocomplete="off" spellcheck="false">
     </label>
     <p class="help" id="dlgKeyHelp"></p>
-    <p class="help">キーはこの端末のブラウザの中だけに保存されます。</p>
+    <p class="help">キーはこの端末のブラウザの中に保存されます。他の端末との同期を使っていれば、暗号化して他の端末にも届きます。</p>
     <div class="dlg-buttons">
       <button value="cancel" formnovalidate>キャンセル</button>
       <button value="ok" id="dlgKeyOk" class="primary">OK</button>
@@ -127,8 +127,9 @@
   <form method="dialog">
     <h2>他の端末との同期</h2>
     <p class="help">
-      歌詞（左右のノート）と指示の一覧を、GitHub の非公開の Gist に置いて、
-      どの端末からでも続きを編集できるようにします。APIキーは同期しません。
+      歌詞（左右のノート）・指示の一覧・AI の APIキーを、GitHub の非公開の Gist に置いて、
+      どの端末からでも続きを編集できるようにします。APIキーはこのトークンで暗号化するので、
+      トークンを登録した端末だけが読めます。新しい端末では、このトークンを入れるだけで AI も使えるようになります。
     </p>
     <ol class="help steps">
       <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Lyricker" target="_blank" rel="noopener">GitHub のトークン作成画面</a>を開く（GitHub にログイン）</li>

@@ -624,11 +624,37 @@ function currentProvider() {
   return findProvider(selProvider.value) || getProviders()[0];
 }
 
-/** AI ごとの設定（キーの一覧とモデル） */
+/** AI ごとの設定（キーの一覧とモデル）。accounts の t と deleted は、他の端末と合わせるための時刻 */
 function providerConfig(p) {
   const all = settings.providers;
   if (!all[p.id]) all[p.id] = { account: '', accounts: {}, model: '' };
+  if (!all[p.id].deleted) all[p.id].deleted = {};
   return all[p.id];
+}
+
+/** 他の端末と同期する APIキーの一覧（どのキーを選んでいるかは端末ごとなので含めない） */
+function getSecrets() {
+  const providers = {};
+  for (const [pid, cfg] of Object.entries(settings.providers)) {
+    const accounts = {};
+    for (const [name, a] of Object.entries(cfg.accounts || {})) {
+      accounts[name] = { key: a.key, model: a.model || '', t: a.t || 0 };
+    }
+    providers[pid] = { accounts, deleted: { ...(cfg.deleted || {}) } };
+  }
+  return { providers };
+}
+
+/** 他の端末と合わせた APIキーの一覧を入れる */
+function applySecrets(merged) {
+  for (const [pid, m] of Object.entries(merged.providers || {})) {
+    const cfg = settings.providers[pid] || (settings.providers[pid] = { account: '', accounts: {}, model: '' });
+    cfg.accounts = m.accounts || {};
+    cfg.deleted = m.deleted || {};
+  }
+  saveSettings();
+  refreshAccounts(providerConfig(currentProvider()).account);
+  showMsg('他の端末の APIキーを読み込みました');
 }
 
 function currentAccount() {
@@ -668,8 +694,16 @@ function saveModel() {
   const cfg = providerConfig(currentProvider());
   const model = inpModel.value.trim();
   const name = selAccount.value;
-  if (cfg.accounts[name]) cfg.accounts[name].model = model;
-  else cfg.model = model;
+  const acct = cfg.accounts[name];
+  if (acct) {
+    if (acct.model !== model) {
+      acct.model = model;
+      acct.t = Date.now();
+      cloud?.schedule();
+    }
+  } else {
+    cfg.model = model;
+  }
   saveSettings();
 }
 
@@ -706,8 +740,11 @@ async function addKey() {
   cfg.accounts[res.name] = {
     key: res.key,
     model: cfg.accounts[res.name]?.model || inpModel.value.trim() || p.defaultModel,
+    t: Date.now(),
   };
+  delete cfg.deleted[res.name];
   refreshAccounts(res.name);
+  cloud?.schedule();
   showMsg(`APIキー「${res.name}」を登録しました`);
   return true;
 }
@@ -721,17 +758,24 @@ async function editKey() {
     alert('キーを消すときは「削除」を使ってください。');
     return;
   }
-  providerConfig(currentProvider()).accounts[acct.name].key = res.key;
+  const a = providerConfig(currentProvider()).accounts[acct.name];
+  a.key = res.key;
+  a.t = Date.now();
   saveSettings();
+  cloud?.schedule();
   showMsg('APIキーを変更しました');
 }
 
 function deleteKey() {
   const acct = currentAccount();
   if (!acct) return;
-  if (!confirm(`APIキー「${acct.name}」を削除しますか？`)) return;
-  delete providerConfig(currentProvider()).accounts[acct.name];
+  if (!confirm(`APIキー「${acct.name}」を削除しますか？\n（同期している他の端末からも削除されます）`)) return;
+  const cfg = providerConfig(currentProvider());
+  delete cfg.accounts[acct.name];
+  // 削除したことを他の端末にも伝えるため、時刻を残す
+  cfg.deleted[acct.name] = Date.now();
   refreshAccounts('');
+  cloud?.schedule();
 }
 
 async function fetchModels() {
@@ -970,6 +1014,8 @@ function initCloud() {
   cloud = new GistSync({
     snapshot: () => ({ state: currentState(), prompts }),
     apply: applyRemote,
+    getSecrets,
+    applySecrets,
     status: setSyncStatus,
     resolve: resolveConflict,
   });

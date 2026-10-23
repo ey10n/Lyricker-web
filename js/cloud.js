@@ -8,9 +8,11 @@
 //   - 他の端末だけが変わった … 読み込む
 //   - 両方が変わった（競合） … どちらを残すか利用者に選んでもらう
 //
-// APIキーは同期しない（Gist は暗号化されないため、キーは端末ごとに登録する）。
+// APIキーの一覧は、トークンから作った鍵で暗号化して同じファイルの secrets に置く（secrets.js）。
+// 歌詞と違って丸ごと置き換えず、キーの名前ごとに新しい方を残して合わせる。
 
 import * as store from './store.js';
+import { canonical, decryptSecrets, encryptSecrets, mergeSecrets } from './secrets.js';
 
 const API = 'https://api.github.com';
 const FILE = 'lyricker-sync.json';
@@ -92,6 +94,8 @@ function fileContent(data) {
  * 同期の係。hooks で画面とつなぐ。
  *   snapshot()              … 同期する内容 { state, prompts }
  *   apply(data)             … 他の端末の内容を画面に入れる
+ *   getSecrets()            … この端末の APIキーの一覧（secrets.js の形）
+ *   applySecrets(secrets)   … 合わせた APIキーの一覧をこの端末に入れる
  *   status(kind, text)      … 状態の表示（kind: off / busy / ok / error / conflict）
  *   resolve(remote, local)  … 競合したとき 'remote' / 'local' / null（あとで）を返す
  */
@@ -128,7 +132,7 @@ export class GistSync {
       meta.gistId = await findGist(token);
     }
     if (!meta.gistId) {
-      const data = this.payload(1);
+      const data = await this.payload(1, token, '');
       const g = await github(token, '/gists', {
         method: 'POST',
         body: JSON.stringify({ description: 'Lyricker の同期データ（自動作成）', public: false, ...fileContent(data) }),
@@ -148,8 +152,13 @@ export class GistSync {
     this.hooks.status('off', '同期: オフ');
   }
 
-  payload(rev) {
-    return { app: 'lyricker', rev, updatedAt: new Date().toISOString(), device: this.meta.device, ...this.hooks.snapshot() };
+  /** Gist に書く内容。APIキーの一覧はトークンから作った鍵で暗号化して入れる */
+  async payload(rev, token, salt) {
+    const secrets = await encryptSecrets(token, this.hooks.getSecrets(), salt);
+    return {
+      app: 'lyricker', rev, updatedAt: new Date().toISOString(), device: this.meta.device,
+      ...this.hooks.snapshot(), secrets,
+    };
   }
 
   /** 編集したあと、少し待ってから同期する */
@@ -180,9 +189,29 @@ export class GistSync {
     try {
       const { token, gistId } = this.meta;
       const remote = await readGist(token, gistId);
+      const salt = remote.secrets?.salt || '';
+
+      // APIキーの一覧は、名前ごとに新しい方を残して合わせる（丸ごと置き換えない）
+      let remoteSecrets = { providers: {} };
+      let unreadable = false;
+      if (remote.secrets) {
+        try {
+          remoteSecrets = await decryptSecrets(token, remote.secrets);
+        } catch {
+          // 別のトークンで暗号化されている。この端末のキーで書き直す
+          unreadable = true;
+        }
+      }
+      const localSecrets = this.hooks.getSecrets();
+      const merged = mergeSecrets(localSecrets, remoteSecrets);
+      if (canonical(merged) !== canonical(localSecrets)) this.hooks.applySecrets(merged);
+      const secretsChanged = unreadable || canonical(merged) !== canonical(remoteSecrets);
+
+      // 歌詞と指示の一覧
       const local = JSON.stringify(this.hooks.snapshot());
       const dirty = local !== this.meta.synced;
       const remoteSnap = JSON.stringify({ state: remote.state, prompts: remote.prompts });
+      let wrote = false;
 
       if (remote.rev > this.meta.base && remoteSnap !== local) {
         // 他の端末が書き換えている
@@ -193,7 +222,8 @@ export class GistSync {
           this.meta.base = remote.rev;
           this.meta.synced = JSON.stringify(this.hooks.snapshot());
         } else if (choice === 'local') {
-          await this.write(remote.rev + 1, local);
+          await this.write(remote.rev + 1, local, salt);
+          wrote = true;
         } else {
           this.saveMeta();
           this.hooks.status('conflict', '同期: 未解決の競合');
@@ -204,11 +234,17 @@ export class GistSync {
         this.meta.base = remote.rev;
         this.meta.synced = local;
       } else if (dirty) {
-        await this.write(Math.max(remote.rev, this.meta.base) + 1, local);
+        await this.write(Math.max(remote.rev, this.meta.base) + 1, local, salt);
+        wrote = true;
+      }
+      // 歌詞は変わっていなくても、APIキーの一覧が違えば書き込む
+      if (!wrote && secretsChanged) {
+        await this.write(Math.max(remote.rev, this.meta.base) + 1, JSON.stringify(this.hooks.snapshot()), salt);
       }
       this.saveMeta();
       const t = new Date();
-      this.hooks.status('ok', `同期済み ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`);
+      this.hooks.status('ok', `同期済み ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`,
+        unreadable ? '以前のトークンで保存された APIキーは読めなかったため、この端末のキーで置き換えました。' : '');
     } catch (e) {
       this.hooks.status('error', '同期エラー', e.message);
     } finally {
@@ -220,8 +256,8 @@ export class GistSync {
     }
   }
 
-  async write(rev, localSnap) {
-    const data = this.payload(rev);
+  async write(rev, localSnap, salt) {
+    const data = await this.payload(rev, this.meta.token, salt);
     await github(this.meta.token, `/gists/${this.meta.gistId}`, {
       method: 'PATCH',
       body: JSON.stringify(fileContent(data)),
