@@ -73,6 +73,8 @@
     <span id="statusMsg" role="status"></span>
   </div>
 
+  <!-- AI 関連はこの 1 つにまとめてある。現在は使用を止めているので隠している（app.js の AI_ENABLED） -->
+  <div id="aiPanel" hidden>
   <div id="aiSplit" class="splitter" title="ドラッグで AI 欄の高さを変える"></div>
 
   <section class="pane" id="paneAI" aria-label="AI">
@@ -103,6 +105,7 @@
       <textarea id="aiResult" readonly placeholder="AI の応答がここに出ます"></textarea>
     </div>
   </section>
+  </div>
 </main>
 
 <dialog id="dlgKey">

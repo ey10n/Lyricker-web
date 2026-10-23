@@ -106,6 +106,17 @@ main {
   padding-left: max(6px, env(safe-area-inset-left));
   padding-right: max(6px, env(safe-area-inset-right));
 }
+/* AI 関連のまとまり。表示するときは中身がそのまま上の配置に入る */
+#aiPanel { display: contents; }
+#aiPanel[hidden] { display: none; }
+/* AI を使わないときは、状態表示の帯を一番下にしてノートを広げる */
+body.ai-off main {
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left right"
+    "status status";
+}
+body.ai-off .tabs button[data-tab="ai"] { display: none; }
 #paneLeft { grid-area: left; }
 #paneRight { grid-area: right; }
 #statusbar { grid-area: status; }
@@ -375,7 +386,7 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .conflict { grid-template-columns: 1fr; }
   .conflict pre { height: 6em; }
 
-  main {
+  main, body.ai-off main {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas: "pane" "status";

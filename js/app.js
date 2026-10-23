@@ -16,6 +16,9 @@ import { GistSync } from './cloud.js';
 
 const $ = (id) => document.getElementById(id);
 
+/** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
+ *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
+const AI_ENABLED = false;
 /** 文字数の上限（表示のみ。入力は制限しない） */
 const MAX_CHARS = 5000;
 /** これより狭い画面は 1 画面ずつのタブ表示にし、行を折り返す（app.css と同じ値） */
@@ -1131,7 +1134,7 @@ function bind() {
 
   // キー操作
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (AI_ENABLED && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       runAI();
     } else if (e.key === 'F3') {
@@ -1150,6 +1153,10 @@ function bind() {
 function start() {
   restore();
   st.prevLines = rightText.value.split('\n');
+  // AI を使わないときは AI 関連をまとめて隠し、状態表示の帯を一番下にする
+  $('aiPanel').hidden = !AI_ENABLED;
+  document.body.classList.toggle('ai-off', !AI_ENABLED);
+  if (!AI_ENABLED && settings.tab === 'ai') settings.tab = 'right';
   applyLayout();
   setTab(settings.tab || 'right');
   bind();

@@ -2,7 +2,7 @@
 // つながっているときは常に最新を取りに行き（取れたら保存し直す）、
 // つながらないときだけ保存しておいたものを使う。AI との通信（別のサイト）には関わらない。
 
-const CACHE = 'lyricker-v8';
+const CACHE = 'lyricker-v9';
 const ASSETS = [
   './',
   'index.html',
