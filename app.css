@@ -289,8 +289,7 @@ main {
 }
 .ai-bar label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 #selProvider { width: 7em; }
-#selAccount { width: 8em; }
-#inpModel { width: 12em; }
+#selAccount, #inpModel { width: 12em; }
 #selPrompt { width: 12em; }
 
 .ai-body {
@@ -358,8 +357,7 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .ai-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
   .ai-body textarea, #inpModel, #selPrompt, #selAccount, #selProvider { font-size: 16px; }
   #selProvider { width: auto; }
-  #selAccount { width: 6.5em; }
-  #inpModel { width: 9.5em; }
+  #selAccount, #inpModel { width: 9.5em; }
   #selPrompt { width: 10em; }
 }
 
