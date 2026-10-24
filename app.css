@@ -83,7 +83,8 @@ select, input:not([type]), input[type=password] {
   background: #fff;
   border-bottom: 1px solid var(--line);
 }
-.topbar h1 { margin: 0; font-size: 16px; color: var(--accent); }
+.topbar h1 { margin: 0; font-size: 16px; color: var(--accent); white-space: nowrap; }
+.version { font-size: 10px; font-weight: normal; color: var(--muted); }
 .tabs { display: none; gap: 2px; }
 .tools { display: flex; gap: 4px; margin-left: auto; }
 
@@ -415,6 +416,14 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   #selPrompt { width: 10em; }
   /* iPhone が拡大しないよう 16px */
   .free { font-size: 16px; }
+}
+
+/* さらに狭いとき（iPhone の「表示の拡大」や、Safari で文字を大きくしているとき） */
+@media (max-width: 360px) {
+  #paneRight .pane-head { gap: 3px; padding: 4px; }
+  #paneRight .pane-head .count { font-size: 11px; }
+  #paneRight .pane-head button { padding: 2px 4px; font-size: 12px; }
+  .tabs button { padding: 5px 10px; }
 }
 
 /* 折り返し表示（狭い画面）。入力欄と下の行が同じ位置で折り返すようにそろえる */

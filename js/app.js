@@ -16,6 +16,8 @@ import { GistSync } from './cloud.js';
 
 const $ = (id) => document.getElementById(id);
 
+/** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
+const APP_VERSION = 'v11';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -1171,9 +1173,25 @@ function start() {
   // 新規（左が空）で狭い画面なら、まず貼り付けの画面を出す
   if (isNarrow() && st.left.length === 0 && rightText.value === '') setTab('left');
 
+  $('appVersion').textContent = APP_VERSION;
+
   // オフラインでも開けるようにする（https か localhost のときだけ使える）
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // 新しい版が届いたら、作業内容を保存してから読み込み直す（初めて開いたときは除く）
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return;
+      persist();
+      location.reload();
+    });
+    // ホーム画面のアプリは閉じても裏で残っていて、開き直しても読み込み直されない。
+    // 画面に戻ってきたときに新しい版が出ていないか確かめる
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {});
+      }
+    });
   }
 }
 
