@@ -134,20 +134,25 @@
       どの端末からでも続きを編集できるようにします。APIキーはこのトークンで暗号化するので、
       トークンを登録した端末だけが読めます。新しい端末では、このトークンを入れるだけで AI も使えるようになります。
     </p>
-    <ol class="help steps">
-      <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Lyricker" target="_blank" rel="noopener">GitHub のトークン作成画面</a>を開く（GitHub にログイン）</li>
-      <li>「gist」だけにチェックが入っていることを確かめ、有効期限を選んで「Generate token」</li>
-      <li>表示された「ghp_…」で始まる文字列をコピーして、下に貼り付ける</li>
-    </ol>
-    <label>GitHub のトークン（Gist の権限だけのもの）
-      <input id="dlgSyncToken" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_...">
-    </label>
-    <p class="help">トークンはこの端末のブラウザの中だけに保存されます。同期したい端末ごとに登録してください（同じトークンで構いません）。</p>
-    <p class="help" id="dlgSyncState"></p>
+    <p class="help sync-state" id="dlgSyncState"></p>
+    <!-- トークンの入力。同期していないとき（または「トークンを変更」を押したとき）だけ出す -->
+    <div id="dlgSyncTokenArea">
+      <ol class="help steps">
+        <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Lyricker" target="_blank" rel="noopener">GitHub のトークン作成画面</a>を開く（GitHub にログイン）</li>
+        <li>「gist」だけにチェックが入っていることを確かめ、有効期限を選んで「Generate token」</li>
+        <li>表示された「ghp_…」で始まる文字列をコピーして、下に貼り付ける</li>
+      </ol>
+      <label>GitHub のトークン（Gist の権限だけのもの）
+        <input id="dlgSyncToken" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_...">
+      </label>
+      <p class="help">トークンはこの端末のブラウザの中に保存されます。同期したい端末ごとに一度だけ登録してください（同じトークンで構いません）。</p>
+    </div>
     <div class="dlg-buttons">
       <button value="stop" id="dlgSyncStop" formnovalidate>同期を止める</button>
       <span class="spacer"></span>
       <button value="cancel" formnovalidate>閉じる</button>
+      <button type="button" id="dlgSyncChange">トークンを変更</button>
+      <button value="now" id="dlgSyncNow" class="primary">今すぐ同期</button>
       <button value="ok" id="dlgSyncOk" class="primary">保存して同期</button>
     </div>
   </form>

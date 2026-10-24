@@ -426,6 +426,19 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .tabs button { padding: 5px 10px; }
 }
 
+/* 指で操作する端末（iPhone・iPad など）は、縦向きでも横向きでもノートの上の帯を 1 行に詰める。
+   横向きの iPhone は幅が 820px を超えて左右に並べる配置になるので、幅ではなく操作のしかたで決める。
+   ボタンが 2 段に折り返すとノートの表示域が狭くなるため、見出しが入りきらなければ見出しの方を省略する */
+@media (hover: none) and (pointer: coarse) {
+  .pane-head { flex-wrap: nowrap; gap: 4px; }
+  .pane-head .label { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .pane-head .label .sub { display: none; }
+  .pane-head .count { flex: none; font-size: 12px; white-space: nowrap; margin-right: 2px; }
+  .pane-head button { flex: none; padding: 3px 6px; font-size: 13px; }
+  /* 右ノートのボタンは文字数のすぐ右から左詰め */
+  #paneRight .pane-head .spacer { display: none; }
+}
+
 /* 折り返し表示（狭い画面）。入力欄と下の行が同じ位置で折り返すようにそろえる */
 body.wrap .sheet { width: 100%; }
 body.wrap .tx { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

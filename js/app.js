@@ -17,7 +17,7 @@ import { GistSync } from './cloud.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -983,15 +983,29 @@ function resolveConflict(remote, local) {
   });
 }
 
+/** 同期の画面で、トークンの入力欄を出すか（同期していないときと「トークンを変更」のときだけ） */
+function showTokenInput(show) {
+  $('dlgSyncTokenArea').hidden = !show;
+  $('dlgSyncOk').hidden = !show;
+  $('dlgSyncNow').hidden = show;
+  $('dlgSyncChange').hidden = show;
+  if (show) $('dlgSyncToken').focus();
+}
+
 function openSyncDialog() {
   const dlg = $('dlgSync');
-  $('dlgSyncToken').value = cloud.meta.token;
+  $('dlgSyncToken').value = '';
   $('dlgSyncStop').disabled = !cloud.enabled;
   // 同期先の Gist の番号の頭を見せて、端末どうしで同じ所に同期しているか確かめられるようにする
   $('dlgSyncState').textContent = cloud.enabled
-    ? `同期中: ${$('syncText').textContent}（同期先 Gist ${cloud.meta.gistId.slice(0, 7)}）`
+    ? `同期しています（${$('syncText').textContent}・同期先 Gist ${cloud.meta.gistId.slice(0, 7)}）。` +
+      'トークンは登録済みなので、入れ直す必要はありません。'
     : 'まだ同期していません。';
   dlg.addEventListener('close', async () => {
+    if (dlg.returnValue === 'now') {
+      cloud.syncNow();
+      return;
+    }
     if (dlg.returnValue === 'stop') {
       if (confirm('この端末の同期を止めます。よろしいですか？\n（この端末の内容と、GitHub の Gist はそのまま残ります）')) cloud.stop();
       return;
@@ -1013,6 +1027,7 @@ function openSyncDialog() {
   }, { once: true });
   dlg.returnValue = '';
   dlg.showModal();
+  showTokenInput(!cloud.enabled);
 }
 
 function initCloud() {
@@ -1025,6 +1040,7 @@ function initCloud() {
     resolve: resolveConflict,
   });
   $('btnSync').addEventListener('click', openSyncDialog);
+  $('dlgSyncChange').addEventListener('click', () => showTokenInput(true));
   document.addEventListener('visibilitychange', () => {
     // 戻ってきたら他の端末の更新を見に行き、離れるときはこの端末の変更を送る
     if (document.visibilityState === 'visible') cloud.pullSoon();
