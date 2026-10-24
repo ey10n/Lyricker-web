@@ -401,6 +401,12 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   /* 見出しはタブに出ているので、ボタンを 1 行に収めるため省く */
   .pane-head .label { display: none; }
   .pane-head button { padding: 4px 8px; }
+  /* 右ノートのボタンは幅を詰めて文字数のすぐ右から左詰めで並べ、2 段に折り返さない
+     （折り返すと右ノートの表示域が狭くなるため） */
+  #paneRight .pane-head { flex-wrap: nowrap; gap: 4px; }
+  #paneRight .pane-head .spacer { display: none; }
+  #paneRight .pane-head .count { font-size: 12px; margin-right: 2px; }
+  #paneRight .pane-head button { padding: 3px 6px; font-size: 13px; }
 
   .ai-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
   .ai-body textarea, #inpModel, #selPrompt, #selAccount, #selProvider { font-size: 16px; }
