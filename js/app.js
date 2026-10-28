@@ -17,7 +17,7 @@ import { GistSync } from './cloud.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v14';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -953,12 +953,21 @@ function applyRemote(data) {
   showMsg(`他の端末（${data.device || '不明'}）の内容を読み込みました`);
 }
 
+let lastSyncError = '';
+
 function setSyncStatus(kind, text, detail = '') {
   const btn = $('btnSync');
   btn.dataset.kind = kind;
   $('syncText').textContent = text;
   btn.title = detail ? `${text}\n${detail}` : `他の端末との同期（${text}）`;
-  if (kind === 'error') showMsg(text + ': ' + detail.split('\n')[0]);
+  // 同期できなくても、ほかの機能はそのまま使える。
+  // 1 分ごとに同期を試すので、同じエラーが続く間は最初の 1 回だけ知らせる
+  if (kind === 'error') {
+    if (detail !== lastSyncError) showMsg(text + ': ' + detail.split('\n')[0]);
+    lastSyncError = detail;
+  } else if (kind === 'ok' || kind === 'off') {
+    lastSyncError = '';
+  }
 }
 
 function preview(state) {

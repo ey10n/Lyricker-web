@@ -1,7 +1,7 @@
 {
   "name": "Lyricker",
   "short_name": "Lyricker",
-  "description": "歌詞の元の内容と編集中の内容を見比べながら、AI の力も借りて推敲するためのノート",
+  "description": "歌詞の元の内容と編集中の内容を見比べながら推敲するためのノート",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",
