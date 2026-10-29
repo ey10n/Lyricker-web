@@ -88,6 +88,33 @@ select, input:not([type]), input[type=password] {
 .tabs { display: none; gap: 2px; }
 .tools { display: flex; gap: 4px; margin-left: auto; }
 
+/* 曲の再生の帯 ------------------------------------------------------------ */
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+  background: #f5f8fc;
+  border-bottom: 1px solid var(--line);
+}
+.player[hidden] { display: none; }
+.player button { padding: 3px 8px; font-variant-numeric: tabular-nums; }
+#plPlay { min-width: 2.8em; }
+#plSeek { flex: 1 1 8em; min-width: 4em; accent-color: var(--accent); }
+.pl-time { flex: none; font-size: 12px; color: #444; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pl-title {
+  flex: 0 1 16em;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* 全体の配置（広い画面: 左右に並べ、下に AI 欄） ---------------------------- */
 
 main {
@@ -382,8 +409,12 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .tabs button { padding: 5px 14px; }
   .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
   .tools button { padding: 4px 8px; }
-  /* 狭い画面では同期の状態は雲の印だけ（色で状態を示す） */
-  #syncText { display: none; }
+  /* 狭い画面では同期の状態は雲の印だけ（色で状態を示す）。曲を開くボタンも ♪ だけ */
+  #syncText, #btnSong .btn-text { display: none; }
+  /* 曲の再生の帯は 1 行に収める（曲名は省いて、ボタンと位置だけ） */
+  .player { gap: 4px; padding-top: 3px; padding-bottom: 3px; }
+  .player button { padding: 3px 6px; font-size: 13px; }
+  .pl-title { display: none; }
   .conflict { grid-template-columns: 1fr; }
   .conflict pre { height: 6em; }
 

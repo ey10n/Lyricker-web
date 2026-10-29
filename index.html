@@ -30,11 +30,25 @@
     <button type="button" role="tab" data-tab="ai">AI</button>
   </nav>
   <div class="tools">
+    <button type="button" id="btnSong" title="曲のファイル（Suno からダウンロードした mp3 など）を開いて、歌詞を見ながら聴く">♪ <span class="btn-text">曲を開く</span></button>
+    <input type="file" id="plFile" accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac" hidden>
     <button type="button" id="btnSync" class="sync-btn" data-kind="off" title="他の端末との同期">☁ <span id="syncText">同期: オフ</span></button>
     <button type="button" id="btnFontDown" title="文字を小さく" aria-label="文字を小さく">A−</button>
     <button type="button" id="btnFontUp" title="文字を大きく" aria-label="文字を大きく">A＋</button>
   </div>
 </header>
+
+<!-- 曲の再生。曲を開いたときだけ出す（js/player.js） -->
+<div class="player" id="playerBar" hidden>
+  <button type="button" id="plBack" title="5 秒戻す（Shift+F2）" aria-label="5 秒戻す">−5秒</button>
+  <button type="button" id="plPlay" class="primary" title="再生（F2）" aria-label="再生">▶</button>
+  <button type="button" id="plStop" title="停止して最初に戻す" aria-label="停止">■</button>
+  <button type="button" id="plFwd" title="5 秒進める" aria-label="5 秒進める">＋5秒</button>
+  <input type="range" id="plSeek" min="0" max="0" step="0.1" value="0" aria-label="再生位置">
+  <span id="plTime" class="pl-time">0:00 / 0:00</span>
+  <span id="plTitle" class="pl-title"></span>
+  <button type="button" id="plClose" title="曲を閉じる" aria-label="曲を閉じる">×</button>
+</div>
 
 <main id="main">
   <section class="pane" id="paneLeft" aria-label="元の歌詞">

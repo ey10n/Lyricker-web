@@ -4,6 +4,7 @@
 // 右で変更した行（✓）・追加した行（+）、左には右で削除した行（−）を行頭に示す。
 // 右のノートで同じ行が 2 回以上出てくる行は橙色にする。
 // AI には右のノートの内容に指示を付けて送り、応答で右のノートを置き換えられる。
+// 曲のファイルを開くと、歌詞を見ながら再生・一時停止できる（js/player.js）。
 //
 // 作業中の内容と設定はブラウザの中（localStorage）に自動で保存する。
 
@@ -13,11 +14,12 @@ import { AIError, findProvider, getProviders } from './ai.js';
 import './gemini.js';
 import { loadPrompts, savePrompts } from './prompts.js';
 import { GistSync } from './cloud.js';
+import { initPlayer, SKIP_SEC } from './player.js';
 
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -1061,6 +1063,8 @@ function initCloud() {
 
 // 起動 ------------------------------------------------------------------------
 
+let player = null;
+
 function bind() {
   // 右のノート
   rightText.addEventListener('input', onRightInput);
@@ -1167,6 +1171,11 @@ function bind() {
     } else if (e.key === 'F3') {
       e.preventDefault();
       gotoDiff(e.shiftKey);
+    } else if (e.key === 'F2' && player) {
+      // 曲の再生・一時停止（Shift で 5 秒戻す）。編集しながら手を離さずに使えるよう F キーにする
+      e.preventDefault();
+      if (e.shiftKey) player.skip(-SKIP_SEC);
+      else player.togglePlay();
     }
   });
 
@@ -1195,6 +1204,7 @@ function start() {
   setAIBusy(false);
   update();
   initCloud();
+  player = initPlayer({ showMsg });
   // 新規（左が空）で狭い画面なら、まず貼り付けの画面を出す
   if (isNarrow() && st.left.length === 0 && rightText.value === '') setTab('left');
 
