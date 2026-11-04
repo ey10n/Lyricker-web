@@ -19,7 +19,7 @@ import { initPlayer, SKIP_SEC } from './player.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -51,6 +51,7 @@ const st = {
   left: [],          // 元の歌詞の行
   seeded: false,     // 左の内容を右に読み込んだか
   marks: [],         // 右のノートで反転表示している文字 { line, ch }（どちらも 0 始まり）
+  lineColors: [],    // 右のノートで色を付けた行番号 { line, c }（c: 1 赤 / 2 黄 / 3 緑）
   prevLines: [],     // 直前の右のノートの行（反転表示の位置を追従させるため）
   rows: [],          // 左右の行の対応
   rightRowOf: [],    // 右の行 → 対応表の何番目か
@@ -146,9 +147,45 @@ function shiftMarks(oldLines, newLines) {
     .filter((m) => m.line < newLines.length && m.ch < newLines[m.line].length);
 }
 
+/** 行番号の色も書き換えに追従させる。書き換えた範囲の行は（行数が減った分を除いて）
+ *  同じ行に残し、それより後ろの行はずらす */
+function shiftLineColors(oldLines, newLines) {
+  if (!st.lineColors.length) return;
+  let p = 0;
+  while (p < oldLines.length && p < newLines.length && oldLines[p] === newLines[p]) p++;
+  let s = 0;
+  while (s < oldLines.length - p && s < newLines.length - p &&
+         oldLines[oldLines.length - 1 - s] === newLines[newLines.length - 1 - s]) s++;
+  const oldEnd = oldLines.length - s;
+  const newEnd = newLines.length - s;
+  const delta = newLines.length - oldLines.length;
+  st.lineColors = st.lineColors
+    .filter((m) => m.line < newEnd || m.line >= oldEnd)
+    .map((m) => (m.line >= oldEnd ? { line: m.line + delta, c: m.c } : m))
+    .filter((m) => m.line < newLines.length);
+}
+
+function parseLineColors(v) {
+  return Array.isArray(v)
+    ? v.filter((m) => Number.isInteger(m?.line) && m.line >= 0 && [1, 2, 3].includes(m.c))
+    : [];
+}
+
+/** 右のノートの行番号をクリック: 赤 → 黄 → 緑 → 元に戻す、を繰り返す */
+function cycleLineColor(line) {
+  const idx = st.lineColors.findIndex((m) => m.line === line);
+  if (idx < 0) st.lineColors.push({ line, c: 1 });
+  else if (st.lineColors[idx].c < 3) st.lineColors[idx] = { line, c: st.lineColors[idx].c + 1 };
+  else st.lineColors.splice(idx, 1);
+  renderRight();
+  updateCaret();
+  persistSoon();
+}
+
 function onRightInput() {
   const lines = rightText.value.split('\n');
   shiftMarks(st.prevLines, lines);
+  shiftLineColors(st.prevLines, lines);
   st.prevLines = lines;
   update();
   persistSoon();
@@ -236,11 +273,13 @@ function renderRight() {
     if (!marksByLine.has(m.line)) marksByLine.set(m.line, []);
     marksByLine.get(m.line).push(m.ch);
   }
+  const colorOf = new Map(st.lineColors.map((m) => [m.line, m.c]));
   let html = '';
   lines.forEach((text, k) => {
     const cls = 'row' + (st.rightDiff[k] ? ' diff' : '') + (st.repeats[k] ? ' rep' : '');
     const mark = SVG[st.rightMarks[k]] || '';
-    html += `<div class="${cls}"><span class="num">${k + 1}</span><span class="mk">${mark}</span>` +
+    const lc = colorOf.has(k) ? ` lc${colorOf.get(k)}` : '';
+    html += `<div class="${cls}"><span class="num${lc}">${k + 1}</span><span class="mk">${mark}</span>` +
       `<span class="tx">${lineHtml(text, marksByLine.get(k))}</span></div>`;
   });
   rightRows.innerHTML = html;
@@ -288,7 +327,7 @@ function persistSoon() {
 }
 
 function currentState() {
-  return { left: st.left, right: rightText.value, marks: st.marks, seeded: st.seeded };
+  return { left: st.left, right: rightText.value, marks: st.marks, lineColors: st.lineColors, seeded: st.seeded };
 }
 
 /** ブラウザ内に保存し、同期していれば少し後に他の端末へも送る */
@@ -304,6 +343,7 @@ function restore() {
   st.left = Array.isArray(s.left) ? s.left.map(String) : [];
   rightText.value = typeof s.right === 'string' ? s.right : '';
   st.marks = Array.isArray(s.marks) ? s.marks.filter((m) => Number.isInteger(m.line) && Number.isInteger(m.ch)) : [];
+  st.lineColors = parseLineColors(s.lineColors);
   st.seeded = !!s.seeded;
 }
 
@@ -323,6 +363,7 @@ function loadLeft(text) {
   if (!st.seeded || rightText.value === '') {
     rightText.value = text;
     st.marks = [];
+    st.lineColors = [];
     st.prevLines = rightText.value.split('\n');
     rightText.setSelectionRange(0, 0);
   }
@@ -358,6 +399,7 @@ function clearNotes() {
   if (song) player.closeSong();
   st.left = [];
   st.marks = [];
+  st.lineColors = [];
   st.seeded = false;
   rightText.value = '';
   st.prevLines = [''];
@@ -955,6 +997,7 @@ function applyRemote(data) {
   st.left = Array.isArray(s.left) ? s.left.map(String) : [];
   rightText.value = typeof s.right === 'string' ? s.right : '';
   st.marks = Array.isArray(s.marks) ? s.marks.filter((m) => Number.isInteger(m.line) && Number.isInteger(m.ch)) : [];
+  st.lineColors = parseLineColors(s.lineColors);
   st.seeded = !!s.seeded;
   st.prevLines = rightText.value.split('\n');
   rightText.setSelectionRange(0, 0);
@@ -1096,6 +1139,11 @@ function bind() {
     }
   });
   rightText.addEventListener('dblclick', onRightDoubleClick);
+  rightRows.addEventListener('click', (e) => {
+    const num = e.target.closest('.num');
+    if (!num) return;
+    cycleLineColor([...rightRows.children].indexOf(num.parentElement));
+  });
   for (const ev of ['keyup', 'click', 'focus', 'select']) rightText.addEventListener(ev, updateCaret);
   document.addEventListener('selectionchange', () => {
     if (document.activeElement === rightText) updateCaret();

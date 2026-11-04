@@ -230,6 +230,12 @@ body.ai-off .tabs button[data-tab="ai"] { display: none; }
 }
 .mk svg { width: .85em; height: .85em; display: block; }
 
+/* 右ノートの行番号はクリックで色を変えられる（赤 → 黄 → 緑 → 元に戻す） */
+#rightRows .num { cursor: pointer; }
+#rightRows .num.lc1 { background: #e53935; color: #fff; font-weight: bold; }
+#rightRows .num.lc2 { background: #ffd600; color: #333; font-weight: bold; }
+#rightRows .num.lc3 { background: #43a047; color: #fff; font-weight: bold; }
+
 .tx {
   flex: 1 1 auto;
   padding-left: var(--text-pad);
