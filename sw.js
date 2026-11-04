@@ -7,7 +7,7 @@
 //
 // 公開し直すときは CACHE の番号と、js/app.js の APP_VERSION を同じ番号に上げる。
 
-const CACHE = 'lyricker-v16';
+const CACHE = 'lyricker-v17';
 const ASSETS = [
   './',
   'index.html',

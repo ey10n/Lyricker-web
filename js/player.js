@@ -55,6 +55,15 @@ function songTitle(fileName) {
 export function initPlayer({ showMsg, onLayout }) {
   const audio = new Audio();
   audio.preload = 'auto';
+  // iOS で画面をロックしても止めないための準備:
+  // ・音の種類を「再生（音楽）」にする（Safari 16.4 以降。既定のままだと画面を消すと止められることがある）
+  // ・audio はページの中に置く（ページに無い audio は裏に回ると止められやすい）
+  if (navigator.audioSession) {
+    try { navigator.audioSession.type = 'playback'; } catch { /* 対応していなければそのまま */ }
+  }
+  audio.setAttribute('playsinline', '');
+  audio.hidden = true;
+  document.body.append(audio);
   const bar = $('playerBar');
   const seek = $('plSeek');
   const btnPlay = $('plPlay');
@@ -81,6 +90,15 @@ export function initPlayer({ showMsg, onLayout }) {
     btnPlay.textContent = playing ? '❚❚' : '▶';
     btnPlay.title = playing ? '一時停止（F2）' : '再生（F2）';
     btnPlay.setAttribute('aria-label', playing ? '一時停止' : '再生');
+    // ロック画面の表示（再生中か・位置）もそろえる
+    if ('mediaSession' in navigator && url) {
+      navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+      if (Number.isFinite(dur) && dur > 0) {
+        try {
+          navigator.mediaSession.setPositionState({ duration: dur, position: Math.min(cur, dur), playbackRate: audio.playbackRate || 1 });
+        } catch { /* 対応していなければ表示しない */ }
+      }
+    }
   }
 
   // 再生位置は少し間をおいて置く（読み込み直したとき続きから聴けるように）
@@ -144,7 +162,10 @@ export function initPlayer({ showMsg, onLayout }) {
     if (url) URL.revokeObjectURL(url);
     url = '';
     title = '';
-    if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = 'none';
+    }
     try { await dbDelete(); } catch { /* 無くてもよい */ }
     setVisible(false);
   }
@@ -210,6 +231,12 @@ export function initPlayer({ showMsg, onLayout }) {
       stop,
       seekbackward: () => skip(-SKIP_SEC),
       seekforward: () => skip(SKIP_SEC),
+      // ロック画面の位置のつまみ
+      seekto: (d) => {
+        if (!url || !Number.isFinite(d.seekTime)) return;
+        audio.currentTime = d.seekTime;
+        render();
+      },
     };
     for (const [action, fn] of Object.entries(handlers)) {
       try { ms.setActionHandler(action, fn); } catch { /* 対応していない操作は飛ばす */ }
