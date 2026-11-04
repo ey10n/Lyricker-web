@@ -228,5 +228,8 @@ export function initPlayer({ showMsg, onLayout }) {
     }
   })();
 
-  return { togglePlay, skip };
+  /** 開いている曲の名前（開いていなければ空） */
+  const songName = () => (url ? title : '');
+
+  return { togglePlay, skip, closeSong, songName };
 }

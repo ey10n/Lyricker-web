@@ -19,7 +19,7 @@ import { initPlayer, SKIP_SEC } from './player.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v16';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -349,10 +349,13 @@ async function pasteFromClipboard() {
   }
 }
 
-/** 「クリア」: 確認してから左右のノートを両方クリアする */
+/** 「クリア」: 確認してから左右のノートを両方クリアする。開いている曲も閉じる */
 function clearNotes() {
-  if (st.left.length === 0 && rightText.value === '') return;
-  if (!confirm('左右のノートの内容を全てクリアします。よろしいですか？')) return;
+  const song = player.songName();
+  if (st.left.length === 0 && rightText.value === '' && !song) return;
+  if (!confirm('左右のノートの内容を全てクリアします。' +
+      (song ? `\n開いている曲「${song}」も閉じます。` : '') + '\nよろしいですか？')) return;
+  if (song) player.closeSong();
   st.left = [];
   st.marks = [];
   st.seeded = false;
@@ -422,7 +425,12 @@ async function copyRight() {
     rightText.setSelectionRange(sel[0], sel[1]);
   }
   showMsg('右のノートの全文をコピーしました');
+  const btn = $('btnCopy');
+  btn.classList.add('done');
+  clearTimeout(copyFlashTimer);
+  copyFlashTimer = setTimeout(() => btn.classList.remove('done'), 1000);
 }
+let copyFlashTimer;
 
 // 差異の移動 ------------------------------------------------------------------
 
@@ -570,6 +578,12 @@ function onRightDoubleClick(e) {
 }
 
 // 画面の切り替え・文字の大きさ ---------------------------------------------------
+
+/** 狭い画面（縦向き）で最初に出すタブ。編集するのは右のノートなので右。
+ *  新規（左右とも空）のときだけ、まず貼り付けの画面（左）を出す */
+function mainTab() {
+  return st.left.length === 0 && rightText.value === '' ? 'left' : 'right';
+}
 
 function setTab(tab) {
   settings.tab = tab;
@@ -1131,6 +1145,8 @@ function bind() {
     b.addEventListener('click', () => setTab(b.dataset.tab));
   }
   narrowMedia.addEventListener('change', () => {
+    // 縦向きにしたときは、編集する右のノートを出す
+    if (isNarrow()) setTab(mainTab());
     applyLayout();
     syncFromRight();
   });
@@ -1205,8 +1221,7 @@ function start() {
   update();
   initCloud();
   player = initPlayer({ showMsg });
-  // 新規（左が空）で狭い画面なら、まず貼り付けの画面を出す
-  if (isNarrow() && st.left.length === 0 && rightText.value === '') setTab('left');
+  if (isNarrow()) setTab(mainTab());
 
   $('appVersion').textContent = APP_VERSION;
 

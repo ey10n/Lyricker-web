@@ -61,6 +61,8 @@ button:disabled { opacity: .45; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
 button.primary:hover:not(:disabled) { background: #275f9c; }
 button.busy { background: #c0392b; border-color: #c0392b; }
+/* 「全文コピー」を押した直後は白く反転して、押されたことを示す */
+button.primary.done, button.primary.done:hover:not(:disabled) { background: #fff; color: var(--accent); }
 
 select, input:not([type]), input[type=password] {
   padding: 3px 4px;
