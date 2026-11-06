@@ -19,7 +19,7 @@ import { initPlayer, SKIP_SEC } from './player.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v20';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -506,6 +506,32 @@ function revertAll() {
   if (rightText.value !== '' &&
       !confirm('右のノート全体を元の歌詞に戻します。よろしいですか？\n（Ctrl+Z で取り消せます）')) return;
   replaceRight(text, 0);
+}
+
+/** 「全文ペースト」: 確認してから、クリップボードの内容で右のノート全体を置き換える */
+async function pasteRightAll() {
+  // iOS などはボタンを押した直後でないと読めないので、確認より先に読み取る
+  let text;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    alert('このブラウザではボタンからの貼り付けが許可されていません。\n' +
+      '右のノートで全て選択してから、長押し（PC は右クリック）→「貼り付け」か Ctrl+V で貼り付けてください。');
+    return;
+  }
+  text = cleanPasted(text ?? '').replace(/\r\n?/g, '\n');
+  if (text === '') {
+    showMsg('クリップボードが空です');
+    return;
+  }
+  if (text === rightText.value) {
+    showMsg('右のノートはクリップボードの内容と同じです');
+    return;
+  }
+  if (!confirm('右のノート全体をクリップボードの内容で置き換えます。よろしいですか？\n（Ctrl+Z で取り消せます）')) return;
+  replaceRight(text, 0);
+  rightScroll.scrollTop = 0;
+  showMsg('クリップボードの内容を右のノートに貼り付けました');
 }
 
 async function copyRight() {
@@ -1241,6 +1267,7 @@ function bind() {
   $('btnLineToRight').addEventListener('click', copyLeftLineToRight);
   $('btnRevertLines').addEventListener('click', revertLines);
   $('btnRevertAll').addEventListener('click', revertAll);
+  $('btnPasteRight').addEventListener('click', pasteRightAll);
   $('btnCopy').addEventListener('click', copyRight);
   $('btnPrevDiff').addEventListener('click', () => gotoDiff(true));
   $('btnNextDiff').addEventListener('click', () => gotoDiff(false));
