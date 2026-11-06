@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v28';
+const APP_VERSION = 'v29';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -251,7 +251,7 @@ function renderLeft() {
     const filler = r.left < 0;   // 右にしか無い行の位置に入れる空行
     const cls = 'row' + (isDiffRow(r) ? ' diff' : '') + (filler ? ' filler' : '');
     const num = filler ? '<span class="num"></span>'
-      : `<span class="num" title="${r.left + 1} 行目">${moraText(mora[r.left], r.left)}</span>`;
+      : `<span class="num">${moraText(mora[r.left])}</span>`;
     html += `<div class="${cls}" data-r="${i}">${num}` +
       `<span class="mk">${st.leftMarks[i] === 'deleted' ? SVG.deleted : ''}</span>` +
       `<span class="tx">${filler ? '' : esc(st.left[r.left])}</span></div>`;
@@ -287,15 +287,15 @@ function renderRight() {
     const cls = 'row' + (st.rightDiff[k] ? ' diff' : '') + (st.repeats[k] ? ' rep' : '');
     const mark = SVG[st.rightMarks[k]] || '';
     const lc = colorOf.has(k) ? ` lc${colorOf.get(k)}` : '';
-    html += `<div class="${cls}"><span class="num${lc}" title="${k + 1} 行目">${moraText(mora[k], k)}</span>` +
+    html += `<div class="${cls}"><span class="num${lc}">${moraText(mora[k])}</span>` +
       `<span class="mk">${mark}</span><span class="tx">${lineHtml(text, marksByLine.get(k))}</span></div>`;
   });
   rightRows.innerHTML = html;
 }
 
-/** 左右のノートの行頭に出すもの: 歌うときの音の数（拍）。辞書を読み込めなかったときは行番号 */
-function moraText(n, k) {
-  if (moraState() === 'error') return String(k + 1);
+/** 左右のノートの行頭に出すもの: 歌うときの音の数（拍）。数えられないとき（辞書を読み込めなかったときも）は空。
+ *  行番号は出さない（音の数と見分けがつかなくなるため） */
+function moraText(n) {
   return n == null ? '' : String(n);
 }
 
@@ -307,10 +307,10 @@ function updateMoraCells() {
   };
   const lines = rightText.value.split('\n');
   const mora = moraCounts(lines);
-  for (let k = 0; k < lines.length; k++) setNum(rightRows.children[k], moraText(mora[k], k));
+  for (let k = 0; k < lines.length; k++) setNum(rightRows.children[k], moraText(mora[k]));
   const leftMora = moraCounts(st.left);
   st.rows.forEach((r, i) => {
-    if (r.left >= 0) setNum(leftRows.children[i], moraText(leftMora[r.left], r.left));
+    if (r.left >= 0) setNum(leftRows.children[i], moraText(leftMora[r.left]));
   });
 }
 
@@ -320,7 +320,7 @@ function onMoraUpdate() {
   if (s !== moraLastState) {
     moraLastState = s;
     if (s === 'ready') showMsg('読みの辞書を読み込みました。ノートの行頭は歌うときの音の数です');
-    else if (s === 'error') showMsg('読みの辞書を読み込めませんでした。ノートの行頭は行番号を出します');
+    else if (s === 'error') showMsg('読みの辞書を読み込めませんでした。音の数は出せません');
   }
   updateMoraCells();
 }
@@ -530,7 +530,7 @@ function copyLeftLineToRight() {
   const text = lines.join('\n');
   replaceRight(text, lineStart(text, k));
   scrollRowIntoView(rightScroll, rightRows.children[k]);
-  showMsg(`左の ${r.left + 1} 行目を右の ${k + 1} 行目にコピーしました（Ctrl+Z で取り消せます）`);
+  showMsg('左の行を右のノートにコピーしました（Ctrl+Z で取り消せます）');
 }
 
 function revertAll() {
