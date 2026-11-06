@@ -7,7 +7,7 @@
 //
 // 公開し直すときは CACHE の番号と、js/app.js の APP_VERSION を同じ番号に上げる。
 
-const CACHE = 'lyricker-v30';
+const CACHE = 'lyricker-v31';
 // 読みの辞書（vendor/ の下、十数 MB）は版を上げても取り直さないよう、別の入れ物に置いて保存したものを先に使う。
 // vendor/ の中身を差し替えたときは、この番号を上げる
 const VENDOR_CACHE = 'lyricker-vendor-1';
