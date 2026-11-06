@@ -173,11 +173,34 @@
     </div>
     <div class="dlg-buttons">
       <button value="stop" id="dlgSyncStop" formnovalidate>同期を止める</button>
+      <button value="history" id="dlgSyncHistory" formnovalidate title="Gist に残っている以前の同期内容を選んで、この端末に読み込む">以前の内容から戻す</button>
       <span class="spacer"></span>
       <button value="cancel" formnovalidate>閉じる</button>
       <button type="button" id="dlgSyncChange">トークンを変更</button>
       <button value="now" id="dlgSyncNow" class="primary">今すぐ同期</button>
       <button value="ok" id="dlgSyncOk" class="primary">保存して同期</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 以前の同期内容から戻す。Gist は書き換えのたびに前の版を残しているので、そこから選んで読み込む -->
+<dialog id="dlgHistory">
+  <form method="dialog" autocomplete="off">
+    <h2>以前の同期内容から戻す</h2>
+    <p class="help">同期のたびに残っている以前の内容です（新しい順）。選ぶと中身を確かめられます。
+      「この内容に戻す」を押すと、この端末の歌詞を選んだ内容で置き換え、他の端末にも同期します。</p>
+    <div class="history">
+      <div class="history-list" id="hsList" role="listbox" aria-label="以前の同期内容"></div>
+      <div class="history-view">
+        <b>元の歌詞</b><pre id="hsLeft"></pre>
+        <b>編集する歌詞</b><pre id="hsRight"></pre>
+      </div>
+    </div>
+    <div class="dlg-buttons">
+      <span class="help" id="hsMsg"></span>
+      <span class="spacer"></span>
+      <button value="cancel" formnovalidate>閉じる</button>
+      <button value="restore" id="hsRestore" class="primary" disabled>この内容に戻す</button>
     </div>
   </form>
 </dialog>

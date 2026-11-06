@@ -388,6 +388,45 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
 .steps { padding-left: 1.4em; line-height: 1.7; }
 .dlg-buttons { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 #dlgSync, #dlgConflict { width: min(34em, calc(100vw - 24px)); }
+#dlgHistory { width: min(52em, calc(100vw - 24px)); }
+.history { display: grid; grid-template-columns: minmax(12em, 2fr) 3fr; gap: 8px; }
+.history-list {
+  height: 22em;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.history-list button {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+  text-align: left;
+  white-space: normal;
+  font-size: 12px;
+}
+.history-list button .sub { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-list button.empty .sub { color: #c00; }
+.history-list button[aria-selected="true"] { background: var(--accent); color: #fff; }
+.history-list button[aria-selected="true"] .sub { color: #e8f0fa; }
+.history-view { display: flex; flex-direction: column; min-width: 0; }
+.history-view pre {
+  flex: 1;
+  min-height: 0;
+  height: 9em;
+  margin: 2px 0 6px;
+  padding: 6px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fafafa;
+  font-family: var(--note-font);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
 .conflict { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .conflict pre {
   height: 9em;
@@ -427,6 +466,9 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   .player button { padding: 3px 6px; font-size: 13px; }
   .pl-title { display: none; }
   .conflict { grid-template-columns: 1fr; }
+  .history { grid-template-columns: 1fr; }
+  .history-list { height: 10em; }
+  .history-view pre { height: 6em; }
   .conflict pre { height: 6em; }
 
   main, body.ai-off main {

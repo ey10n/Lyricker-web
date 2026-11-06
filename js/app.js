@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v31';
+const APP_VERSION = 'v32';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -1216,6 +1216,7 @@ function openSyncDialog() {
   const dlg = $('dlgSync');
   $('dlgSyncToken').value = '';
   $('dlgSyncStop').disabled = !cloud.enabled;
+  $('dlgSyncHistory').disabled = !cloud.enabled;
   // 同期先の Gist の番号の頭を見せて、端末どうしで同じ所に同期しているか確かめられるようにする
   $('dlgSyncState').textContent = cloud.enabled
     ? `同期しています（${$('syncText').textContent}・同期先 Gist ${cloud.meta.gistId.slice(0, 7)}）。` +
@@ -1224,6 +1225,10 @@ function openSyncDialog() {
   dlg.addEventListener('close', async () => {
     if (dlg.returnValue === 'now') {
       cloud.syncNow();
+      return;
+    }
+    if (dlg.returnValue === 'history') {
+      openHistoryDialog();
       return;
     }
     if (dlg.returnValue === 'stop') {
@@ -1248,6 +1253,112 @@ function openSyncDialog() {
   dlg.returnValue = '';
   dlg.showModal();
   showTokenInput(!cloud.enabled);
+}
+
+// 以前の同期内容から戻す ------------------------------------------------------------
+
+function formatWhen(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso || '';
+  const y = d.getFullYear() !== new Date().getFullYear() ? `${d.getFullYear()}/` : '';
+  return `${y}${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** 版の中身の要約（一覧に出す）。歌詞が空なら empty */
+function historySummary(data) {
+  const s = data.state || {};
+  const left = Array.isArray(s.left) ? s.left : [];
+  const right = typeof s.right === 'string' ? s.right : '';
+  const empty = left.length === 0 && right.trim() === '';
+  const first = right.split('\n').find((l) => l.trim() !== '') || left.find((l) => l.trim() !== '') || '';
+  const lines = right === '' ? 0 : right.split('\n').length;
+  return { empty, text: `${data.device || '不明'}・${empty ? '（空）' : `${lines} 行「${first.trim()}」`}` };
+}
+
+async function openHistoryDialog() {
+  const dlg = $('dlgHistory');
+  const list = $('hsList');
+  const msg = $('hsMsg');
+  const restoreBtn = $('hsRestore');
+  const loaded = new Map();   // 版 → 中身（読み込み中は Promise）
+  let selected = null;
+  let open = true;
+  list.innerHTML = '';
+  $('hsLeft').textContent = '';
+  $('hsRight').textContent = '';
+  restoreBtn.disabled = true;
+  msg.textContent = '一覧を読み込んでいます…';
+  dlg.returnValue = '';
+  dlg.showModal();
+
+  const load = (version) => {
+    if (!loaded.has(version)) loaded.set(version, cloud.readVersion(version));
+    return loaded.get(version);
+  };
+  const show = async (item, btn) => {
+    selected = null;
+    restoreBtn.disabled = true;
+    for (const b of list.children) b.setAttribute('aria-selected', String(b === btn));
+    $('hsLeft').textContent = '読み込んでいます…';
+    $('hsRight').textContent = '';
+    try {
+      const data = await load(item.version);
+      if (!btn.matches('[aria-selected="true"]')) return;   // 読み込み中に別の版を選んだ
+      const s = data.state || {};
+      $('hsLeft').textContent = (Array.isArray(s.left) ? s.left : []).join('\n') || '（空）';
+      $('hsRight').textContent = (typeof s.right === 'string' ? s.right : '') || '（空）';
+      selected = { item, data };
+      restoreBtn.disabled = historySummary(data).empty;
+    } catch (e) {
+      $('hsLeft').textContent = `読み込めませんでした。\n${e.message}`;
+    }
+  };
+
+  dlg.addEventListener('close', () => {
+    open = false;
+    if (dlg.returnValue !== 'restore' || !selected) return;
+    const { item, data } = selected;
+    if (!confirm(`${formatWhen(item.at)} の内容（${historySummary(data).text}）に戻します。\n` +
+        'この端末の左右のノートは置き換わり、他の端末にも同期します。よろしいですか？')) return;
+    applyRemote({ state: data.state, device: data.device });
+    showMsg(`${formatWhen(item.at)} の同期内容に戻しました`);
+    cloud.schedule();
+  }, { once: true });
+
+  let items;
+  try {
+    items = await cloud.history();
+  } catch (e) {
+    msg.textContent = `一覧を読み込めませんでした。${e.message}`;
+    return;
+  }
+  msg.textContent = `${items.length} 件`;
+  const buttons = items.map((item, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('role', 'option');
+    btn.setAttribute('aria-selected', 'false');
+    btn.innerHTML = `${esc(formatWhen(item.at))}${i === 0 ? '（今の内容）' : ''}<span class="sub">…</span>`;
+    btn.addEventListener('click', () => show(item, btn));
+    list.appendChild(btn);
+    return btn;
+  });
+  // 各版の要約を少しずつ読み込んで一覧に出す（空にされた版がひと目で分かるように）
+  let next = 0;
+  const worker = async () => {
+    while (open && next < items.length) {
+      const i = next++;
+      const sub = buttons[i].querySelector('.sub');
+      try {
+        const sum = historySummary(await load(items[i].version));
+        sub.textContent = sum.text;
+        buttons[i].classList.toggle('empty', sum.empty);
+      } catch {
+        sub.textContent = '読み込めませんでした';
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
 }
 
 function initCloud() {

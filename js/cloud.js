@@ -71,8 +71,8 @@ async function findGist(token) {
   return null;
 }
 
-async function readGist(token, id) {
-  const g = await github(token, `/gists/${id}`);
+async function readGist(token, id, version = '') {
+  const g = await github(token, `/gists/${id}${version ? `/${version}` : ''}`);
   const f = g.files?.[FILE];
   if (!f) throw new SyncError('同期用の Gist の中身が見つかりません。');
   let text = f.content;
@@ -264,6 +264,23 @@ export class GistSync {
     });
     this.meta.base = rev;
     this.meta.synced = localSnap;
+  }
+
+  /** Gist の過去の版の一覧（新しい順）。{ version, at } の配列 */
+  async history() {
+    const { token, gistId } = this.meta;
+    const out = [];
+    for (let page = 1; page <= 3; page++) {
+      const list = await github(token, `/gists/${gistId}/commits?per_page=100&page=${page}`);
+      for (const c of list) out.push({ version: c.version, at: c.committed_at });
+      if (list.length < 100) break;
+    }
+    return out;
+  }
+
+  /** Gist の過去の版の中身 */
+  readVersion(version) {
+    return readGist(this.meta.token, this.meta.gistId, version);
   }
 
   /** この端末に、まだ何も書いていないか（新しい端末なら他の端末の内容をそのまま読み込む） */
