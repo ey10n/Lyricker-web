@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v27';
+const APP_VERSION = 'v28';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -245,11 +245,14 @@ function renderLeft() {
   paneLeft.classList.toggle('empty', st.left.length === 0);
   $('btnPaste').disabled = st.left.length > 0;
   $('btnLineToRight').disabled = st.left.length === 0;
+  const mora = moraCounts(st.left);
   let html = '';
   st.rows.forEach((r, i) => {
     const filler = r.left < 0;   // 右にしか無い行の位置に入れる空行
     const cls = 'row' + (isDiffRow(r) ? ' diff' : '') + (filler ? ' filler' : '');
-    html += `<div class="${cls}" data-r="${i}"><span class="num">${filler ? '' : r.left + 1}</span>` +
+    const num = filler ? '<span class="num"></span>'
+      : `<span class="num" title="${r.left + 1} 行目">${moraText(mora[r.left], r.left)}</span>`;
+    html += `<div class="${cls}" data-r="${i}">${num}` +
       `<span class="mk">${st.leftMarks[i] === 'deleted' ? SVG.deleted : ''}</span>` +
       `<span class="tx">${filler ? '' : esc(st.left[r.left])}</span></div>`;
   });
@@ -290,22 +293,25 @@ function renderRight() {
   rightRows.innerHTML = html;
 }
 
-/** 右のノートの行頭に出すもの: 歌うときの音の数（拍）。辞書を読み込めなかったときは行番号 */
+/** 左右のノートの行頭に出すもの: 歌うときの音の数（拍）。辞書を読み込めなかったときは行番号 */
 function moraText(n, k) {
   if (moraState() === 'error') return String(k + 1);
   return n == null ? '' : String(n);
 }
 
-/** 拍の数が出そろったら、右のノートの行頭だけを書き換える */
+/** 拍の数が出そろったら、左右のノートの行頭だけを書き換える */
 function updateMoraCells() {
+  const setNum = (row, t) => {
+    const num = row?.firstElementChild;
+    if (num && num.textContent !== t) num.textContent = t;
+  };
   const lines = rightText.value.split('\n');
   const mora = moraCounts(lines);
-  const rows = rightRows.children;
-  for (let k = 0; k < lines.length && k < rows.length; k++) {
-    const num = rows[k].firstElementChild;
-    const t = moraText(mora[k], k);
-    if (num.textContent !== t) num.textContent = t;
-  }
+  for (let k = 0; k < lines.length; k++) setNum(rightRows.children[k], moraText(mora[k], k));
+  const leftMora = moraCounts(st.left);
+  st.rows.forEach((r, i) => {
+    if (r.left >= 0) setNum(leftRows.children[i], moraText(leftMora[r.left], r.left));
+  });
 }
 
 let moraLastState = '';
@@ -313,8 +319,8 @@ function onMoraUpdate() {
   const s = moraState();
   if (s !== moraLastState) {
     moraLastState = s;
-    if (s === 'ready') showMsg('読みの辞書を読み込みました。右のノートの行頭は歌うときの音の数です');
-    else if (s === 'error') showMsg('読みの辞書を読み込めませんでした。右のノートの行頭は行番号を出します');
+    if (s === 'ready') showMsg('読みの辞書を読み込みました。ノートの行頭は歌うときの音の数です');
+    else if (s === 'error') showMsg('読みの辞書を読み込めませんでした。ノートの行頭は行番号を出します');
   }
   updateMoraCells();
 }
@@ -1390,7 +1396,7 @@ function start() {
   update();
   initCloud();
   player = initPlayer({ showMsg });
-  // 右のノートの行頭に出す音の数（拍）。辞書が大きいので、画面を出してから読み込み始める
+  // 左右のノートの行頭に出す音の数（拍）。辞書が大きいので、画面を出してから読み込み始める
   setTimeout(() => {
     if (moraState() === 'idle') showMsg('読みの辞書を読み込んでいます…');
     initMora(onMoraUpdate);
