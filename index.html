@@ -132,13 +132,13 @@
 </main>
 
 <dialog id="dlgKey">
-  <form method="dialog">
+  <form method="dialog" autocomplete="off">
     <h2 id="dlgKeyTitle">APIキーを追加</h2>
     <label>キー名（自分用の呼び名。例: 個人、仕事）
       <input id="dlgKeyName" maxlength="40" autocomplete="off">
     </label>
     <label>APIキー
-      <input id="dlgKeyValue" type="password" autocomplete="off" spellcheck="false">
+      <input id="dlgKeyValue" type="text" class="secret" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </label>
     <p class="help" id="dlgKeyHelp"></p>
     <p class="help">キーはこの端末のブラウザの中に保存されます。他の端末との同期を使っていれば、暗号化して他の端末にも届きます。</p>
@@ -150,7 +150,7 @@
 </dialog>
 
 <dialog id="dlgSync">
-  <form method="dialog">
+  <form method="dialog" autocomplete="off">
     <h2>他の端末との同期</h2>
     <p class="help">
       歌詞（左右のノート）・指示の一覧・AI の APIキーを、GitHub の非公開の Gist に置いて、
@@ -166,7 +166,7 @@
         <li>表示された「ghp_…」で始まる文字列をコピーして、下に貼り付ける</li>
       </ol>
       <label>GitHub のトークン（Gist の権限だけのもの）
-        <input id="dlgSyncToken" type="password" autocomplete="off" spellcheck="false" placeholder="ghp_...">
+        <input id="dlgSyncToken" type="text" class="secret" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ghp_...">
       </label>
       <p class="help">トークンはこの端末のブラウザの中に保存されます。同期したい端末ごとに一度だけ登録してください（同じトークンで構いません）。</p>
     </div>
@@ -182,7 +182,7 @@
 </dialog>
 
 <dialog id="dlgConflict">
-  <form method="dialog">
+  <form method="dialog" autocomplete="off">
     <h2>他の端末でも編集されています</h2>
     <p class="help">この端末と他の端末の両方で、前回の同期のあとに編集されました。どちらの内容を残しますか？</p>
     <div class="conflict">

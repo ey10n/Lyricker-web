@@ -401,6 +401,9 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   font-size: 12px;
   white-space: pre-wrap;
 }
+/* キーやトークンの欄は伏せ字にする。type="password" にすると、iPhone がページ全体をログイン画面と見なして
+   ノートの欄にも「連絡先を自動入力」のバーを出すことがあるため、見た目だけ伏せ字にする */
+.secret { -webkit-text-security: disc; text-security: disc; }
 #cfRemoteInfo { color: var(--muted); font-size: 12px; }
 
 /* 同期の状態 */
