@@ -19,7 +19,7 @@ import { initPlayer, SKIP_SEC } from './player.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -60,6 +60,7 @@ const st = {
   rightDiff: [],
   repeats: [],
   caretLine: 0,
+  leftPin: null,     // 左の行をクリックして選んだ行 { row: 対応表の何番目か, caretLine: そのときの右のカーソル行 }
   aiResult: '',
 };
 
@@ -183,6 +184,7 @@ function cycleLineColor(line) {
 }
 
 function onRightInput() {
+  st.leftPin = null;
   const lines = rightText.value.split('\n');
   shiftMarks(st.prevLines, lines);
   shiftLineColors(st.prevLines, lines);
@@ -241,6 +243,7 @@ function update() {
 function renderLeft() {
   paneLeft.classList.toggle('empty', st.left.length === 0);
   $('btnPaste').disabled = st.left.length > 0;
+  $('btnLineToRight').disabled = st.left.length === 0;
   let html = '';
   st.rows.forEach((r, i) => {
     const filler = r.left < 0;   // 右にしか無い行の位置に入れる空行
@@ -285,14 +288,29 @@ function renderRight() {
   rightRows.innerHTML = html;
 }
 
-/** カーソル行の反転表示。左は右のカーソル行に対応する行を示す */
+/** カーソル行の反転表示。左は右のカーソル行に対応する行を示す。
+ *  左の行をクリックしたときは、右のカーソル行が動くまでその行を左のカーソル行にする */
 function updateCaret() {
   st.caretLine = lineOfPos(rightText.value, rightText.selectionStart);
+  if (st.leftPin && (st.leftPin.caretLine !== st.caretLine || st.leftPin.row >= st.rows.length)) {
+    st.leftPin = null;
+  }
   rightRows.querySelector('.row.caret')?.classList.remove('caret');
   leftRows.querySelector('.row.caret')?.classList.remove('caret');
   rightRows.children[st.caretLine]?.classList.add('caret');
-  const r = st.rightRowOf[st.caretLine];
+  const r = leftCaretRow();
   if (r >= 0) leftRows.children[r]?.classList.add('caret');
+}
+
+/** 左のカーソル行（対応表の何番目か。無ければ -1） */
+function leftCaretRow() {
+  return st.leftPin ? st.leftPin.row : (st.rightRowOf[st.caretLine] ?? -1);
+}
+
+/** 左の行（対応表の r 番目）を左のカーソル行にする */
+function pinLeftRow(r) {
+  st.leftPin = { row: r, caretLine: st.caretLine };
+  updateCaret();
 }
 
 /** 文字数。改行は 1 文字として数える */
@@ -436,6 +454,46 @@ function revertLines() {
   for (let i = 0; i < rowA; i++) if (st.rows[i].right >= 0) k++;
   replaceRight(text, lineStart(text, k));
   showMsg('元の歌詞に戻しました（Ctrl+Z で取り消せます）');
+}
+
+/** 左のカーソル行を、右のノートの対応する行に上書きする。
+ *  右で消した行（左の − の行）は、右の同じ位置に差し込む */
+function copyLeftLineToRight() {
+  if (!st.left.length) return;
+  const i = leftCaretRow();
+  const r = st.rows[i];
+  if (!r) {
+    showMsg('コピーする左の行をクリックしてください');
+    return;
+  }
+  if (r.left < 0) {
+    showMsg('左のこの行は空いています（右にしか無い行の位置）');
+    return;
+  }
+  const lines = rightLines();
+  const line = st.left[r.left];
+  let k = r.right;
+  if (k >= 0) {
+    if (lines[k] === line) {
+      showMsg('右の行は左と同じです');
+      return;
+    }
+    lines[k] = line;
+  } else {
+    // 次に右の行がある位置の前へ入れる。無ければ末尾
+    k = lines.length;
+    for (let j = i + 1; j < st.rows.length; j++) {
+      if (st.rows[j].right >= 0) {
+        k = st.rows[j].right;
+        break;
+      }
+    }
+    lines.splice(k, 0, line);
+  }
+  const text = lines.join('\n');
+  replaceRight(text, lineStart(text, k));
+  scrollRowIntoView(rightScroll, rightRows.children[k]);
+  showMsg(`左の ${r.left + 1} 行目を右の ${k + 1} 行目にコピーしました（Ctrl+Z で取り消せます）`);
 }
 
 function revertAll() {
@@ -1151,18 +1209,22 @@ function bind() {
   rightScroll.addEventListener('scroll', syncFromRight, { passive: true });
   leftScroll.addEventListener('scroll', syncFromLeft, { passive: true });
 
-  // 左のノート: 行をクリックすると右の対応する行へ
+  // 左のノート: 行をクリックすると、その行を左のカーソル行にし（「行を右へ」で使う）、
+  // 広い画面では右のカーソルも対応する行へ動かす
   leftRows.addEventListener('click', (e) => {
     const row = e.target.closest('.row');
-    if (!row || isNarrow()) return;
+    if (!row) return;
     const r = Number(row.dataset.r);
-    let k = -1;
-    for (let i = r; i < st.rows.length && k < 0; i++) if (st.rows[i].right >= 0) k = st.rows[i].right;
-    if (k < 0) k = Math.max(0, rightText.value.split('\n').length - 1);
-    const pos = lineStart(rightText.value, k);
-    rightText.focus({ preventScroll: true });
-    rightText.setSelectionRange(pos, pos);
-    updateCaret();
+    if (!isNarrow()) {
+      let k = -1;
+      for (let i = r; i < st.rows.length && k < 0; i++) if (st.rows[i].right >= 0) k = st.rows[i].right;
+      if (k < 0) k = Math.max(0, rightText.value.split('\n').length - 1);
+      const pos = lineStart(rightText.value, k);
+      rightText.focus({ preventScroll: true });
+      rightText.setSelectionRange(pos, pos);
+      updateCaret();
+    }
+    pinLeftRow(r);
   });
 
   // 左が空のときの貼り付け欄。貼り付けだけを受け付ける（元の歌詞は直接編集しない）
@@ -1176,6 +1238,7 @@ function bind() {
 
   $('btnPaste').addEventListener('click', pasteFromClipboard);
   $('btnClear').addEventListener('click', clearNotes);
+  $('btnLineToRight').addEventListener('click', copyLeftLineToRight);
   $('btnRevertLines').addEventListener('click', revertLines);
   $('btnRevertAll').addEventListener('click', revertAll);
   $('btnCopy').addEventListener('click', copyRight);
