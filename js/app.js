@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v26';
+const APP_VERSION = 'v27';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
