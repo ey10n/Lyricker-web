@@ -62,7 +62,7 @@
     </div>
     <div class="note" id="leftScroll">
       <div class="sheet"><div class="rows" id="leftRows"></div></div>
-      <textarea id="leftPaste" name="lyrics-source" class="paste-area" spellcheck="false" autocomplete="lyrics-source" data-form-type="other"
+      <textarea id="leftPaste" class="paste-area" spellcheck="false" autocomplete="off" autocorrect="off" data-form-type="other"
         placeholder="ここに元の歌詞を貼り付けてください。&#10;右のノートにも同じ内容が読み込まれ、右で編集していきます。&#10;&#10;（スマートフォンは長押し →「ペースト」、または上の「貼り付け」ボタン）"></textarea>
     </div>
   </section>
@@ -80,9 +80,10 @@
     <div class="note" id="rightScroll">
       <div class="sheet" id="rightSheet">
         <div class="rows" id="rightRows"></div>
-        <!-- iPhone の「連絡先を自動入力」を出さないよう、autocomplete には決まりにない語を入れる（off は無視される） -->
-        <textarea id="rightText" name="lyrics-edit" wrap="off" spellcheck="false" autocapitalize="off"
-          autocomplete="lyrics-edit" data-form-type="other" aria-label="編集する歌詞"></textarea>
+        <!-- iPhone の「連絡先を自動入力」を出さないよう、自動入力・自動修正を切る。
+             name に「-」を入れると電話番号の欄と見なされることがあるので、name は付けない -->
+        <textarea id="rightText" wrap="off" spellcheck="false" autocapitalize="off"
+          autocomplete="off" autocorrect="off" data-form-type="other" aria-label="編集する歌詞"></textarea>
       </div>
     </div>
   </section>
