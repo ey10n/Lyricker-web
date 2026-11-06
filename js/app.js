@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v29';
+const APP_VERSION = 'v30';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -428,6 +428,37 @@ function loadLeft(text) {
   persist();
   if (isNarrow()) setTab('right');
   showMsg('元の歌詞を読み込みました');
+}
+
+/** 「左だけ貼り付け」: クリップボードの内容で左のノートだけを置き換える。右のノートはそのまま。
+ *  左に内容があるときは確認する（左は Ctrl+Z で戻せないため） */
+async function pasteLeftOnly() {
+  let text;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch {
+    alert('このブラウザではボタンからの貼り付けが許可されていません。');
+    return;
+  }
+  text = cleanPasted(text ?? '').replace(/\r\n?/g, '\n');
+  if (text.endsWith('\n')) text = text.slice(0, -1);
+  if (text === '') {
+    showMsg('クリップボードが空です');
+    return;
+  }
+  if (text === st.left.join('\n')) {
+    showMsg('左のノートはクリップボードの内容と同じです');
+    return;
+  }
+  if (st.left.length > 0 &&
+      !confirm('左のノートをクリップボードの内容で置き換えます（右のノートはそのままです）。よろしいですか？\n（元に戻せません）')) return;
+  st.left = text.split('\n');
+  st.seeded = true;
+  st.leftPin = null;
+  leftPaste.value = '';
+  update();
+  persist();
+  showMsg('クリップボードの内容を左のノートに貼り付けました');
 }
 
 async function pasteFromClipboard() {
@@ -1300,6 +1331,7 @@ function bind() {
   });
 
   $('btnPaste').addEventListener('click', pasteFromClipboard);
+  $('btnPasteLeft').addEventListener('click', pasteLeftOnly);
   $('btnClear').addEventListener('click', clearNotes);
   $('btnLineToRight').addEventListener('click', copyLeftLineToRight);
   $('btnRevertLines').addEventListener('click', revertLines);
