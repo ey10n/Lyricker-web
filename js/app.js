@@ -15,11 +15,12 @@ import './gemini.js';
 import { loadPrompts, savePrompts } from './prompts.js';
 import { GistSync } from './cloud.js';
 import { initPlayer, SKIP_SEC } from './player.js';
+import { initMora, moraCounts, moraState } from './mora.js';
 
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v25';
+const APP_VERSION = 'v26';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -277,15 +278,45 @@ function renderRight() {
     marksByLine.get(m.line).push(m.ch);
   }
   const colorOf = new Map(st.lineColors.map((m) => [m.line, m.c]));
+  const mora = moraCounts(lines);
   let html = '';
   lines.forEach((text, k) => {
     const cls = 'row' + (st.rightDiff[k] ? ' diff' : '') + (st.repeats[k] ? ' rep' : '');
     const mark = SVG[st.rightMarks[k]] || '';
     const lc = colorOf.has(k) ? ` lc${colorOf.get(k)}` : '';
-    html += `<div class="${cls}"><span class="num${lc}">${k + 1}</span><span class="mk">${mark}</span>` +
-      `<span class="tx">${lineHtml(text, marksByLine.get(k))}</span></div>`;
+    html += `<div class="${cls}"><span class="num${lc}" title="${k + 1} 行目">${moraText(mora[k], k)}</span>` +
+      `<span class="mk">${mark}</span><span class="tx">${lineHtml(text, marksByLine.get(k))}</span></div>`;
   });
   rightRows.innerHTML = html;
+}
+
+/** 右のノートの行頭に出すもの: 歌うときの音の数（拍）。辞書を読み込めなかったときは行番号 */
+function moraText(n, k) {
+  if (moraState() === 'error') return String(k + 1);
+  return n == null ? '' : String(n);
+}
+
+/** 拍の数が出そろったら、右のノートの行頭だけを書き換える */
+function updateMoraCells() {
+  const lines = rightText.value.split('\n');
+  const mora = moraCounts(lines);
+  const rows = rightRows.children;
+  for (let k = 0; k < lines.length && k < rows.length; k++) {
+    const num = rows[k].firstElementChild;
+    const t = moraText(mora[k], k);
+    if (num.textContent !== t) num.textContent = t;
+  }
+}
+
+let moraLastState = '';
+function onMoraUpdate() {
+  const s = moraState();
+  if (s !== moraLastState) {
+    moraLastState = s;
+    if (s === 'ready') showMsg('読みの辞書を読み込みました。右のノートの行頭は歌うときの音の数です');
+    else if (s === 'error') showMsg('読みの辞書を読み込めませんでした。右のノートの行頭は行番号を出します');
+  }
+  updateMoraCells();
 }
 
 /** カーソル行の反転表示。左は右のカーソル行に対応する行を示す。
@@ -1359,6 +1390,11 @@ function start() {
   update();
   initCloud();
   player = initPlayer({ showMsg });
+  // 右のノートの行頭に出す音の数（拍）。辞書が大きいので、画面を出してから読み込み始める
+  setTimeout(() => {
+    if (moraState() === 'idle') showMsg('読みの辞書を読み込んでいます…');
+    initMora(onMoraUpdate);
+  }, 300);
   if (isNarrow()) setTab(mainTab());
 
   $('appVersion').textContent = APP_VERSION;

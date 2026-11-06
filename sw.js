@@ -7,7 +7,10 @@
 //
 // 公開し直すときは CACHE の番号と、js/app.js の APP_VERSION を同じ番号に上げる。
 
-const CACHE = 'lyricker-v25';
+const CACHE = 'lyricker-v26';
+// 読みの辞書（vendor/ の下、十数 MB）は版を上げても取り直さないよう、別の入れ物に置いて保存したものを先に使う。
+// vendor/ の中身を差し替えたときは、この番号を上げる
+const VENDOR_CACHE = 'lyricker-vendor-1';
 const ASSETS = [
   './',
   'index.html',
@@ -21,6 +24,8 @@ const ASSETS = [
   'js/cloud.js',
   'js/secrets.js',
   'js/player.js',
+  'js/mora.js',
+  'js/mora-worker.js',
   'manifest.webmanifest',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -38,14 +43,26 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== VENDOR_CACHE)
+        .map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname.includes('/vendor/')) {
+    e.respondWith(caches.open(VENDOR_CACHE).then(async (c) => {
+      const hit = await c.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res.ok) c.put(req, res.clone());
+      return res;
+    }));
+    return;
+  }
   e.respondWith(
     fetch(req, { cache: 'no-cache' })
       .then((res) => {
