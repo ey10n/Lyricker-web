@@ -447,6 +447,8 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   #paneRight .pane-head .spacer { display: none; }
   #paneRight .pane-head .count { font-size: 12px; margin-right: 2px; }
   #paneRight .pane-head button { padding: 3px 6px; font-size: 12px; }
+  /* 上の帯のボタン（タブ・曲を開く・同期・文字の大きさ）も右ノートのボタンと同じ大きさにそろえる */
+  .tabs button, .tools button { font-size: 12px; }
 
   .ai-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
   .ai-body textarea, #inpModel, #selPrompt, #selAccount, #selProvider { font-size: 16px; }
@@ -469,6 +471,9 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   /* 右ノートのボタンは文字数のすぐ右から左詰め。ボタンが 4 つあるので文字を一回り小さく */
   #paneRight .pane-head .spacer { display: none; }
   #paneRight .pane-head button { font-size: 12px; }
+  /* 右ノートの帯は見出し・文字数もボタンと同じ大きさに。上の帯のボタンもそろえる */
+  #paneRight .pane-head .label { font-size: 12px; }
+  .tabs button, .tools button { font-size: 12px; }
 }
 
 /* さらに狭いとき（iPhone の「表示の拡大」や、Safari で文字を大きくしているとき） */
@@ -476,6 +481,7 @@ dialog input { width: 100%; font-size: 16px; padding: 6px; }
   #paneRight .pane-head { gap: 3px; padding: 4px; }
   #paneRight .pane-head .count { font-size: 11px; }
   #paneRight .pane-head button { padding: 2px 4px; font-size: 11px; }
+  #paneRight .pane-head .label, .tabs button, .tools button { font-size: 11px; }
   .tabs button { padding: 5px 10px; }
 }
 
