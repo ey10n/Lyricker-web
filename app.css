@@ -18,7 +18,6 @@
   --diff-fg: #e00000;
   --rep-fg: #ff8c00;       /* 右ノートの再出行 */
   --caret-left: #a0c8ff;   /* カーソル行 */
-  --caret-right: #a0eba0;
   --mark-bg: #ff3c3c;      /* ダブルクリックした文字 */
 
   /* 行番号と印の列の幅。行番号は小さい文字にするので、em ではなくノートの文字の大きさから決める
@@ -247,7 +246,9 @@ body.ai-off .tabs button[data-tab="ai"] { display: none; }
 .row.rep .tx { color: var(--rep-fg); }
 .row.caret .tx { background: var(--caret-bg); }
 #leftRows { --caret-bg: var(--caret-left); }
-#rightRows { --caret-bg: var(--caret-right); }
+/* 右（編集側）のカーソル行は背景色ではなく黒い下線。行の高さが変わらないよう内側の影で描く */
+#rightRows .row.caret .tx { background: none; box-shadow: inset 0 -1px 0 #000; }
+#rightRows .row.diff.caret .tx { background: var(--diff-bg); }
 .cm { background: var(--mark-bg); color: #fff; }
 
 /* 右ノートの入力欄。文字は透明にして、下に重ねた行（色付き）を見せる */
