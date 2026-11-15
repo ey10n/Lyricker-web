@@ -20,7 +20,7 @@ import { initMora, moraCounts, moraState } from './mora.js';
 const $ = (id) => document.getElementById(id);
 
 /** 画面に出す版の番号。公開し直すときは sw.js の CACHE と同じ番号に上げる */
-const APP_VERSION = 'v33';
+const APP_VERSION = 'v34';
 /** AI を使うか。無償で使える AI（Gemini の無償枠）は遅すぎて実用にならないため、現在は使用を止めている。
  *  AI 関連の画面は index.html の #aiPanel にまとめてあり、true にすれば元どおり表示される */
 const AI_ENABLED = false;
@@ -96,6 +96,15 @@ function showMsg(text) {
 
 function isNarrow() {
   return narrowMedia.matches;
+}
+
+// iPhone / iPad は 16px 未満の入力欄に触れると画面を拡大する（横向きなど、文字を 16px 未満にしているとき）。
+// maximum-scale=1 を付けるとこの自動拡大が止まる。iOS は指で広げる拡大はこれを無視して許すので、
+// 自分で拡大することはできる。Android などでは指での拡大まで止まってしまうので、iOS だけに付ける
+if (/iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1';
 }
 
 // 右のノート ----------------------------------------------------------------
